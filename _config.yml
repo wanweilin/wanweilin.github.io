@@ -11,9 +11,9 @@ title                    : "Weilin Wan / Academics Page"
 title_separator          : "-"
 name                     : &name "Weilin Wan"
 description              : &description "personal description"
-url                      : https://weilinwan.github.io
+url                      : https://wanweilin.github.io
 baseurl                  : "" # the subpath of your site, e.g. "/blog"
-repository               : "wanweilin/weilinwan.github.io"
+repository               : "wanweilin/wanweilin.github.io"
 teaser                   :  # filename of teaser fallback teaser image placed in /images/, .e.g. "500x300.png"
 breadcrumbs              : false # true, false (default)
 words_per_minute         : 160
