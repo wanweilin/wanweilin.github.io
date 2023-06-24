@@ -7,7 +7,7 @@
 
 # Site Settings
 locale                   : "en-US"
-title                    : "Weilin Wan's WebSite"
+title                    : "Weilin Wan / Academics Page"
 title_separator          : "-"
 name                     : &name "Weilin Wan"
 description              : &description "personal description"
@@ -85,7 +85,7 @@ author:
   bio              : "Hi."
   location         : "Shanghai, China"
   employer         : "School of Computer Science, Fudan University"
-  pubmed           : 
+  #pubmed           : 
   googlescholar    : "https://scholar.google.com/citations?user=s8zMgL0AAAAJ&hl=en"
   email            : "wlwan21@m.fudan.edu.cn
   researchgate     :  
@@ -109,7 +109,7 @@ author:
   stackoverflow    : 
   steam            :
   tumblr           :
-  twitter          : 
+  #twitter          : 
   vine             :
   weibo            :
   xing             :
