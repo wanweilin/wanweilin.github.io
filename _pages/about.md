@@ -18,22 +18,19 @@ My research interests include but are not limited to:
 *   **Model Efficiency**: Model compression, efficient training and inference strategies, and acceleration algorithms for diffusion models.
 *   **Model Robustness**: Anomaly detection and Out-of-Distribution (OOD) detection to enhance model reliability.
 
-Selected Publications
+Recent Publications
 ======
-**Explore and Establish Synergistic Effects Between Weight Pruning and Coreset Selection in Neural Network Training**  
+[**Explore and Establish Synergistic Effects Between Weight Pruning and Coreset Selection in Neural Network Training**](https://arxiv.org/pdf/2511.09901)  
 **Weilin Wan**, Fan Yi, Weizhong Zhang, Quan Zhou, Cheng Jin  
 Published in *AAAI Conference on Artificial Intelligence (AAAI)*, 2026  
-This paper investigates the interplay between weight pruning and coreset selection, proposing a synergistic training mechanism (SWaST) that alternately optimizes both to improve efficiency and accuracy while preventing critical information loss.
 
 [**Advanced Black-Box Tuning of Large Language Models with Limited API Calls**](https://arxiv.org/pdf/2511.10210)  
 Zhikang Xie, **Weilin Wan**, Peizhu Gong, Weizhong Zhang, Cheng Jin  
 Published in *AAAI Conference on Artificial Intelligence (AAAI)*, 2026  
-This paper proposes Advanced Black-Box Tuning (ABBT), a framework that reduces API calls by an order of magnitude in LLM optimization through instruction-aware initialization and Langevin dynamics-based evolution.
 
 [**Computational Budget Should Be Considered in Data Selection**](https://arxiv.org/pdf/2510.16806)  
 **Weilin Wan**, Weizhong Zhang, Cheng Jin  
 Published in *Neural Information Processing Systems (NeurIPS)*, 2025  
-This paper challenges the assumption that data importance is budget-independent and proposes CADS, a computation-aware data selection framework that dynamically optimizes training subsets under explicit computational constraints.
 
 <!-- Academic Service
 ======
