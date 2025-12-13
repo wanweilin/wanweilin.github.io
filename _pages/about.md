@@ -22,5 +22,12 @@ My research interests include but are not limited to:
 
 Academic Service
 ======
-*   **Reviewer**: TMLR, NeurIPS 2024/2025, ICLR 2025/2026, AAAI 2026.
-*   **Top Reviewer**, NeurIPS 2024/2025
+I actively participate in the peer review process for top-tier computer vision and machine learning conferences and journals.
+
+*   **Conference Reviewer**:
+    *   Neural Information Processing Systems (**NeurIPS**): 2024, 2025
+        *   🏆 **Selected as Top Reviewer** (NeurIPS 2024, 2025)
+    *   International Conference on Learning Representations (**ICLR**): 2025, 2026
+    *   AAAI Conference on Artificial Intelligence (**AAAI**): 2026
+*   **Journal Reviewer**:
+    *   Transactions on Machine Learning Research (**TMLR**)
