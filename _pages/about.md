@@ -9,8 +9,6 @@ redirect_from:
 
 I am currently a Ph.D. candidate in Computer Application Technology at the College of Computer Science and Artificial Intelligence, Fudan University, advised by Prof. Cheng Jin. I received my B.S. degree in Computer Science and Technology from Fudan University in 2021.
 
-You can find my CV here: [CV](https://wanweilin.github.io/files/resume_wwl.pdf).
-
 Research Interests
 ======
 My research interests include but are not limited to:
