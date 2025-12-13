@@ -35,16 +35,6 @@ This paper proposes Advanced Black-Box Tuning (ABBT), a framework that reduces A
 Published in *Neural Information Processing Systems (NeurIPS)*, 2025  
 This paper challenges the assumption that data importance is budget-independent and proposes CADS, a computation-aware data selection framework that dynamically optimizes training subsets under explicit computational constraints.
 
-[**Out-of-distribution detection using neural activation prior**](https://arxiv.org/pdf/2402.18162)  
-**Weilin Wan**, Weizhong Zhang, Quan Zhou, Fan Yi, Cheng Jin  
-*arXiv preprint arXiv:2402.18162*, 2024  
-This paper introduces Neural Activation Prior (NAP), a parameter-free post-hoc framework that effectively detects out-of-distribution samples by exploiting the distinct “signal-to-noise” activation patterns within feature channels without requiring retraining.
-
-[**Pose-Motion Video Anomaly Detection via Memory-Augmented Reconstruction and Conditional Variational Prediction**](https://ieeexplore.ieee.org/abstract/document/10219792)  
-**Weilin Wan**, Weizhong Zhang, Cheng Jin  
-Published in *IEEE International Conference on Multimedia and Expo (ICME)*, 2023  
-This paper presents a skeleton-based video anomaly detection framework (PoMo) that combines memory-augmented pose reconstruction and conditional variational motion prediction to effectively identify spatial and temporal anomalies.
-
 <!-- Academic Service
 ======
 I actively participate in the peer review process for top-tier computer vision and machine learning conferences and journals.
