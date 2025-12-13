@@ -9,6 +9,8 @@ redirect_from:
 
 {% include base_path %}
 
+You can find pdf here: [CV](https://wanweilin.github.io/files/resume_wwl.pdf).
+
 Education
 ======
 * Ph.D. in Computer Application Technology, Fudan University, 2026 (expected)
