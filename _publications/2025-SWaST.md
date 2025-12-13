@@ -7,6 +7,8 @@ excerpt: 'This paper is about a famous math equation, $$E=mc^2$$'
 date: 2026-01-24
 venue: 'AAAI'
 paperurl: 'https://arxiv.org/pdf/2511.09901'
+authors: "<b>Weilin Wan</b>, Fan Yi, Weizhong Zhang, Quan Zhou, Cheng Jin"  
+
 ---
 
 To be added.
