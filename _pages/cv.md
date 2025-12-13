@@ -17,29 +17,22 @@ Education
 
 Work experience
 ======
-* Spring 2024: Academic Pages Collaborator
-  * GitHub University
-  * Duties includes: Updates and improvements to template
-  * Supervisor: The Users
+* Nov 2025 - Present: LLM Pre-training Algorithm Intern
+  * Xiaohongshu
+  * Duties include: Conducting research on Large Language Model (LLM) pre-training, optimizing training dynamics.
 
-* Fall 2015: Research Assistant
-  * GitHub University
-  * Duties included: Merging pull requests
-  * Supervisor: Professor Hub
-
-* Summer 2015: Research Assistant
-  * GitHub University
-  * Duties included: Tagging issues
-  * Supervisor: Professor Git
+* Spring 2020 - Summer 2020: Deep Learning Intern
+  * Fosun Lead Intelligence (Shanghai) Pharmaceutical Technology Co., Ltd.
+  * Duties included: Conducting research on Tumor Precision Medicine based on deep learning; Designed and developed Graph Message Passing Neural Networks (GMPNN) tools for molecular property analysis.
   
-Skills
+<!-- Skills
 ======
 * Skill 1
 * Skill 2
   * Sub-skill 2.1
   * Sub-skill 2.2
   * Sub-skill 2.3
-* Skill 3
+* Skill 3 -->
 
 Publications
 ======
@@ -47,11 +40,11 @@ Publications
     {% include archive-single-cv.html %}
   {% endfor %}</ul>
   
-Talks
+<!-- Talks
 ======
   <ul>{% for post in site.talks reversed %}
     {% include archive-single-talk-cv.html  %}
-  {% endfor %}</ul>
+  {% endfor %}</ul> -->
   
 Teaching
 ======
@@ -59,6 +52,14 @@ Teaching
     {% include archive-single-cv.html %}
   {% endfor %}</ul>
   
-Service and leadership
+Academic Service
 ======
-* Currently signed in to 43 different slack teams
+I actively participate in the peer review process for top-tier computer vision and machine learning conferences and journals.
+
+*   **Conference Reviewer**:
+    *   Neural Information Processing Systems (**NeurIPS**): 2024, 2025
+        *   🏆 **Selected as Top Reviewer** (NeurIPS 2024, 2025)
+    *   International Conference on Learning Representations (**ICLR**): 2025, 2026
+    *   AAAI Conference on Artificial Intelligence (**AAAI**): 2026
+*   **Journal Reviewer**:
+    *   Transactions on Machine Learning Research (**TMLR**)
