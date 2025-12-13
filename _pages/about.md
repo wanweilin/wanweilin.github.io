@@ -7,7 +7,7 @@ redirect_from:
   - /about.html
 ---
 
-I am currently a Ph.D. candidate in Computer Application Technology at the College of Computer Science and Artificial Intelligence, Fudan University, advised by Prof. Cheng Jin. I received my B.S. degree in Computer Science and Technology from Fudan University in 2021.
+I am currently a Ph.D. candidate in Computer Application Technology at the College of Computer Science and Artificial Intelligence, Fudan University, advised by [Prof. Cheng Jin](https://cjinfdu.github.io/index.html). I also work closely with [Prof. Weizhong Zhang](https://weizhonz.github.io/). I received my B.S. degree in Computer Science and Technology from Fudan University in 2021.
 
 Research Interests
 ======
