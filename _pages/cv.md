@@ -13,14 +13,14 @@ You can find pdf here: [CV](https://wanweilin.github.io/files/resume_wwl.pdf).
 
 Education
 ======
-* Ph.D. in Computer Application Technology, Fudan University, 2026 (expected)
+* Ph.D. in Computer Application Technology, Fudan University, 2027 (expected)
 * B.S. in Computer Science and Technology, Fudan University, 2021
 
 Work experience
 ======
 * Nov 2025 - Present: LLM Pre-training Algorithm Intern
   * Xiaohongshu
-  * Duties include: Conducting research on Large Language Model (LLM) pre-training, optimizing training dynamics.
+  * Duties include: Investigated Scaling Laws and structural parameter optimization for MoE models; designed a pipeline mapping compute budgets to optimal structural parameter allocations. Researched efficient and robust data mixture algorithms, utilizing low-rank matrices to model interaction relationships across different data domains.
 
 * Spring 2020 - Summer 2020: Deep Learning Intern
   * Fosun Lead Intelligence (Shanghai) Pharmaceutical Technology Co., Ltd.
