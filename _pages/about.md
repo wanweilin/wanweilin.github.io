@@ -18,6 +18,10 @@ My research interests include but are not limited to:
 
 Recent Publications
 ======
+[**Holistic Scaling Laws for Optimal Mixture-of-Experts Architecture Optimization**](https://arxiv.org/pdf/2603.21862)  
+**Weilin Wan**, Jingtao Han, Weizhong Zhang, Cheng Jin  
+*arXiv preprint arXiv:2603.21862*, 2026  
+
 [**Explore and Establish Synergistic Effects Between Weight Pruning and Coreset Selection in Neural Network Training**](https://arxiv.org/pdf/2511.09901)  
 **Weilin Wan**, Fan Yi, Weizhong Zhang, Quan Zhou, Cheng Jin  
 Published in *AAAI Conference on Artificial Intelligence (AAAI)*, 2026  
