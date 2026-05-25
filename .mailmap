@@ -1,0 +1,20 @@
+# Canonical author identity: Weilin Wan <yamazakigravito@gmail.com>
+# Maps various historical aliases (typo / different shells / GitHub web UI) to canonical.
+
+# 1. The wrong name (typo) on primary email
+Weilin Wan <yamazakigravito@gmail.com> Weilin Zhang <yamazakigravito@gmail.com>
+
+# 2. GitHub web UI commits (noreply emails)
+Weilin Wan <yamazakigravito@gmail.com> wanweilin <wanweilin@users.noreply.github.com>
+Weilin Wan <yamazakigravito@gmail.com> wanweilin <71996593+wanweilin@users.noreply.github.com>
+Weilin Wan <yamazakigravito@gmail.com> wlwan <71996593+wanweilin@users.noreply.github.com>
+
+# 3. Lowercase / variant on primary email
+Weilin Wan <yamazakigravito@gmail.com> wanweilin <yamazakigravito@gmail.com>
+Weilin Wan <yamazakigravito@gmail.com> weilin <yamazakigravito@gmail.com>
+
+# 4. School email (Fudan) — keep separate email but normalize name
+Weilin Wan <wlwan23@m.fudan.edu.cn> weilin wan <wlwan23@m.fudan.edu.cn>
+Weilin Wan <wlwan23@m.fudan.edu.cn> wlwan <wlwan23@m.fudan.edu.cn>
+Weilin Wan <wlwan23@m.fudan.edu.cn> wlwan23 <wlwan23@m.fudan.edu.cn>
+
