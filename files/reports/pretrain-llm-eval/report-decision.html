@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>预训练 LLM 评估：选型 Cookbook</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
 <style>
 :root {
   --c-text: #1a1a1a;
@@ -1679,6 +1680,26 @@ a.footnote-backref:hover { color: var(--c-primary); }
 <p>报告截稿日期: 2026-05-25。Frontier Watch 附录覆盖截稿后涌现的新工作。</p>
 </footer>
 </div>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script>
+  function __renderMath() {
+    if (typeof katex === 'undefined') { setTimeout(__renderMath, 50); return; }
+    document.querySelectorAll('span.math.inline').forEach(function (el) {
+      try { katex.render(el.textContent, el, {throwOnError: false, displayMode: false}); }
+      catch (e) { console.warn('katex inline failed:', el.textContent, e); }
+    });
+    document.querySelectorAll('div.math.block, p.math.block, span.math.block').forEach(function (el) {
+      try { katex.render(el.textContent.trim(), el, {throwOnError: false, displayMode: true}); }
+      catch (e) { console.warn('katex block failed:', el.textContent, e); }
+    });
+    document.body.dataset.mathReady = '1';
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(__renderMath, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', __renderMath);
+  }
+</script>
 <!-- ============ annotation overlay (inserted before </body>) ============ -->
 <style>
   @media print {

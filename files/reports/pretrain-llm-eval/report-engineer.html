@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>预训练 LLM 评估：工程实践者手册</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
 <style>
 :root {
   --c-text: #1a1a1a;
@@ -1443,7 +1444,7 @@ max        | 102,847      | 103,884
 <p>第二个坑：batch size 太大时 KV cache 在 99% 长 generation 完成、1% 还在生成时被卡住——剩下 1% 占着所有 slot。vLLM v0.6.4+ 的 <code>--max-num-seqs 8</code> 限制并发数能稳态；新人常默认 256 起跑，结果中位 latency 不变但 P99 爆炸。</p>
 <h2>Self-consistency / maj@k：成本曲线与置信区间</h2>
 <p>reasoning era 的&quot;标准报告动作&quot;是 <code>maj@k</code>（k 次采样，取多数票答案）。AIME 30 题、maj@64 = 1,920 次推理；R1 平均每次 ~7k token，total ≈ 13.4M token；按 8×H100 80G 部署、throughput ≈ 800 token/s（vLLM bf16，batch=8），wall clock ≈ 4.6 小时。一遍 AIME 2024 + 2025 maj@64 = ~9 小时。</p>
-<p>Soohak / FrontierMath / MathArena 都要求 maj@32 或 Avg@3 以稳定数字。算下来一个 R1-size 模型跑全套 reasoning suite（AIME / MATH-500 / GPQA-Diamond / LiveCodeBench v6 / SWE-Bench Pro）一次 ≈ 240 H100-小时，价格约 $480-$720（按 spot $2-3/hr/H100）。</p>
+<p>Soohak / FrontierMath / MathArena 都要求 maj@32 或 Avg@3 以稳定数字。算下来一个 R1-size 模型跑全套 reasoning suite（AIME / MATH-500 / GPQA-Diamond / LiveCodeBench v6 / SWE-Bench Pro）一次 ≈ 240 H100-小时，价格约 <span class="math inline">480-</span>720（按 spot $2-3/hr/H100）。</p>
 <p>maj@k 的统计置信区间常被低估。AIME 30 题 maj@1 的标准差是 √(p(1-p)/30) ≈ 9.1% (p=0.5)；maj@32 名义上把 p 估计的精度提高 √32 ≈ 5.7 倍，但 effective sample size 还是 30（你只有 30 题），CI ≈ ±5 pp 是天花板。AIME 2025 上 R1 报 79.8% 与 79.2% 在 CI 内不可分。MathArena 论文<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup> 显式给 bootstrap CI，这是 reasoning era 该有的报告规范——单一数字不附 CI 没意义。</p>
 <h2>数学 grader：boxed-answer 提取与 SymPy normalize</h2>
 <p>MATH / MATH-500 / AIME / FrontierMath 的评分骨架是相同的：&quot;抽取 <code>\boxed{...}</code> 内表达式 → SymPy normalize → 与 gold 比较&quot;。代码长这样：</p>
@@ -1700,7 +1701,7 @@ The answer is \boxed{42}.
 </tr>
 </tbody>
 </table>
-<p>按 spot $2.5/hr/H100：本地可跑 reasoning suite 一次 $570，含 SWE-Pro 一次 ~$1,140。这只是一次 pretrain ckpt 的 final eval；training mid-run 不可能这么跑。</p>
+<p>按 spot <span class="math inline">2.5/hr/H100：本地可跑 reasoning suite 一次</span>570，含 SWE-Pro 一次 ~$1,140。这只是一次 pretrain ckpt 的 final eval；training mid-run 不可能这么跑。</p>
 <p>正确的 cadence 是：(1) 每 100k step 跑 <code>MATH-500 + GPQA-Diamond + AIME</code> 三件套 maj@1 quick check（≈ 1 GPU-hr）；(2) 每 milestone 跑全套 maj@k；(3) Release-only 再跑 SWE-Pro / FrontierMath / Soohak 的 hold-out 申请评测。把全套用作 mid-run monitor 是预算自杀。</p>
 <h2>引用</h2>
 <hr class="footnotes-sep" />
@@ -2052,8 +2053,8 @@ mcpmark run --task-id all --model gpt-5-medium \
 <p>两者评估哲学正面冲突：MCP-Atlas 用 claim-based judge 给 partial credit (0/0.5/1.0)，MCPMark 用 programmatic verify 求 0/1。工程上选哪个看 use case——选 frontier model 上限测 MCP-Atlas（hidden split），选 deployment readiness 测 MCPMark（程序化验证更严）。</p>
 <h2>7.8 长 horizon agent 的成本控制</h2>
 <p>Stage 0.5 frontier scan 里三个 1M-token / 长 horizon benchmark 需要单独说明成本：</p>
-<p><strong>AgencyBench</strong> (github.com/GAIR-NLP/AgencyBench, 138 task × 1M context × ~90 tool calls per task × 数小时执行)：跑全套 frontier model（如 Claude Opus 4.7）按 $15/M input + $75/M output 估算单次约 $30+ per task × 138 ≈ <strong>$4,000+ 单 model 评测</strong>。pass@1 单次还要 ×2 (with feedback)。工程上的应对：(a) 用 OpenRouter 跨家比价；(b) 只跑 hard subset (32 scenario 抽样)；(c) 视觉 LLM-judge (Gemini-2.5-Pro) 单独控成本。AgencyBench paper 的 scaffold sensitivity 是另一个工程坑：同一模型在 Claude-Agent-SDK vs 第三方 SDK 上差距可达 20.5% <code>[agencybench-2026]</code>，单一 scaffold 跑出的数字不能直接横比。</p>
-<p><strong>AstaBench</strong> (github.com/allenai/asta-bench, 2400+ 科研 task)：全 suite 需 40-128 GB memory + Docker sandbox + MCP 文献工具 (~4 req/sec rate limit) + 评测大型 log 单次需 30+ min <code>[astabench-2026]</code>。Allen AI 自己也承认 E2E discovery 子任务最强 agent 仅 3% 完美完成，但 coding / literature 子任务相对容易，aggregate 看似很高但有&quot;高位虚胖&quot;风险。<code>astabench score &lt;log_dir&gt;</code> 自动 aggregate + 算 model usage cost ($/problem)；Claude Opus 4.7 总分 58.0% / $3.54 per problem，GPT-5.5 52.9% / $1.61 per problem。</p>
+<p><strong>AgencyBench</strong> (github.com/GAIR-NLP/AgencyBench, 138 task × 1M context × ~90 tool calls per task × 数小时执行)：跑全套 frontier model（如 Claude Opus 4.7）按 <span class="math inline">15/M input +</span>75/M output 估算单次约 <span class="math inline">30+ per task × 138 ≈ **</span>4,000+ 单 model 评测**。pass@1 单次还要 ×2 (with feedback)。工程上的应对：(a) 用 OpenRouter 跨家比价；(b) 只跑 hard subset (32 scenario 抽样)；(c) 视觉 LLM-judge (Gemini-2.5-Pro) 单独控成本。AgencyBench paper 的 scaffold sensitivity 是另一个工程坑：同一模型在 Claude-Agent-SDK vs 第三方 SDK 上差距可达 20.5% <code>[agencybench-2026]</code>，单一 scaffold 跑出的数字不能直接横比。</p>
+<p><strong>AstaBench</strong> (github.com/allenai/asta-bench, 2400+ 科研 task)：全 suite 需 40-128 GB memory + Docker sandbox + MCP 文献工具 (~4 req/sec rate limit) + 评测大型 log 单次需 30+ min <code>[astabench-2026]</code>。Allen AI 自己也承认 E2E discovery 子任务最强 agent 仅 3% 完美完成，但 coding / literature 子任务相对容易，aggregate 看似很高但有&quot;高位虚胖&quot;风险。<code>astabench score &lt;log_dir&gt;</code> 自动 aggregate + 算 model usage cost (<span class="math inline">/problem)；Claude Opus 4.7 总分 58.0% /</span>3.54 per problem，GPT-5.5 52.9% / $1.61 per problem。</p>
 <p><strong>Odysseys</strong> (github.com/ljang0/Odysseys, 200 web task × 100-step budget × ~30min wall-clock)：live Internet 评测，<strong>不可完全 reproducible</strong> <code>[odysseys-2026]</code>——网站改版 / 登录墙 / rate-limit 都会让同 task 不同时间结果不同。工程建议：跑前先 freeze 一份 Wayback Machine snapshot 当 baseline；paper claim 要标明跑的 time range。</p>
 <h2>7.9 没有公开 repo 的 8 张卡——工程章节的边界</h2>
 <p><code>_KNOWN-ISSUES.md</code> 提示有 8 张卡片没有公开 repo：lemmabench / soohak / eternalmath / riemann-bench（github_url = arxiv URL）、swe-rebench（github_url = swe-rebench.com）、cattle-trade / pac-bench / llm-olympiad（github_url = paper URL）、swe-bench-pro（github_url = blog URL）。工程章节不能假设这些 benchmark 可 clone：</p>
@@ -2171,6 +2172,26 @@ mcpmark run --task-id all --model gpt-5-medium \
 <p>报告截稿日期: 2026-05-25。Frontier Watch 附录覆盖截稿后涌现的新工作。</p>
 </footer>
 </div>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script>
+  function __renderMath() {
+    if (typeof katex === 'undefined') { setTimeout(__renderMath, 50); return; }
+    document.querySelectorAll('span.math.inline').forEach(function (el) {
+      try { katex.render(el.textContent, el, {throwOnError: false, displayMode: false}); }
+      catch (e) { console.warn('katex inline failed:', el.textContent, e); }
+    });
+    document.querySelectorAll('div.math.block, p.math.block, span.math.block').forEach(function (el) {
+      try { katex.render(el.textContent.trim(), el, {throwOnError: false, displayMode: true}); }
+      catch (e) { console.warn('katex block failed:', el.textContent, e); }
+    });
+    document.body.dataset.mathReady = '1';
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(__renderMath, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', __renderMath);
+  }
+</script>
 <!-- ============ annotation overlay (inserted before </body>) ============ -->
 <style>
   @media print {
