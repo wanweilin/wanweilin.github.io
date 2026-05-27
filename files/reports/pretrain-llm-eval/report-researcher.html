@@ -799,6 +799,31 @@ $$</p>
 <style>
   @media print {
     #ann-toolbar, .ann-modal, #ann-tooltip { display: none !important; }
+    .ann-highlight { background: none !important; border-bottom: 1px dashed #888 !important; }
+  }
+  /* persistent highlight on text */
+  .ann-highlight {
+    border-radius: 2px;
+    padding: 1px 0;
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .ann-highlight:hover { filter: brightness(0.92); }
+  .ann-highlight.ann-tag-question {
+    background: rgba(255, 220, 100, 0.45);
+    box-shadow: inset 0 -2px 0 rgba(218, 165, 32, 0.7);
+  }
+  .ann-highlight.ann-tag-note {
+    background: rgba(165, 215, 255, 0.4);
+    box-shadow: inset 0 -2px 0 rgba(31, 58, 95, 0.6);
+  }
+  .ann-highlight.ann-tag-insight {
+    background: rgba(178, 245, 198, 0.5);
+    box-shadow: inset 0 -2px 0 rgba(45, 106, 79, 0.6);
+  }
+  .ann-highlight.ann-tag-fact-check {
+    background: rgba(255, 195, 195, 0.5);
+    box-shadow: inset 0 -2px 0 rgba(155, 34, 38, 0.6);
   }
   #ann-tooltip {
     position: absolute;
@@ -1132,6 +1157,153 @@ $$</p>
     return 'a-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
 
+  // ------------------ persistent highlight machinery ------------------
+
+  const PREFIX_LEN = 25;
+  const SUFFIX_LEN = 25;
+
+  function findContainingSection(node) {
+    let n = node;
+    while (n && n !== document.body) {
+      if (n.nodeType === 1 && n.tagName === 'SECTION' && n.id) return n;
+      n = n.parentNode;
+    }
+    return document.body;
+  }
+
+  function captureContext(range, text) {
+    try {
+      const section = findContainingSection(range.startContainer);
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      let flat = '';
+      let startInFlat = -1;
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node === range.startContainer) {
+          startInFlat = flat.length + range.startOffset;
+        }
+        flat += node.data;
+      }
+      if (startInFlat < 0) return null;
+      const endInFlat = startInFlat + text.length;
+      return {
+        prefix: flat.slice(Math.max(0, startInFlat - PREFIX_LEN), startInFlat),
+        suffix: flat.slice(endInFlat, Math.min(flat.length, endInFlat + SUFFIX_LEN)),
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function findTextRangeInRoot(root, quote, prefix, suffix) {
+    if (!quote) return null;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let flat = '';
+    const map = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      map.push({ node: n, start: flat.length, end: flat.length + n.data.length });
+      flat += n.data;
+    }
+    let quoteOff = -1;
+    // try full prefix+quote+suffix match
+    if (prefix || suffix) {
+      const target = (prefix || '') + quote + (suffix || '');
+      const tIdx = flat.indexOf(target);
+      if (tIdx !== -1) quoteOff = tIdx + (prefix || '').length;
+    }
+    if (quoteOff < 0) {
+      // fallback: find all quote occurrences, pick best by surrounding match
+      const candidates = [];
+      let p = 0;
+      while ((p = flat.indexOf(quote, p)) !== -1) {
+        candidates.push(p);
+        p += quote.length;
+      }
+      if (candidates.length === 0) return null;
+      if (candidates.length === 1) {
+        quoteOff = candidates[0];
+      } else {
+        let best = candidates[0], bestScore = -1;
+        for (const c of candidates) {
+          let score = 0;
+          if (prefix) {
+            const sample = prefix.slice(-Math.min(prefix.length, 10));
+            if (sample && flat.slice(Math.max(0, c - sample.length), c).endsWith(sample)) score++;
+          }
+          if (suffix) {
+            const sample = suffix.slice(0, Math.min(suffix.length, 10));
+            if (sample && flat.slice(c + quote.length, c + quote.length + sample.length) === sample) score++;
+          }
+          if (score > bestScore) { bestScore = score; best = c; }
+        }
+        quoteOff = best;
+      }
+    }
+    const endOff = quoteOff + quote.length;
+    let sNode = null, sOff = 0, eNode = null, eOff = 0;
+    for (const m of map) {
+      if (!sNode && m.start <= quoteOff && quoteOff < m.end) {
+        sNode = m.node; sOff = quoteOff - m.start;
+      }
+      if (!eNode && m.start < endOff && endOff <= m.end) {
+        eNode = m.node; eOff = endOff - m.start;
+        break;
+      }
+    }
+    if (!sNode || !eNode) return null;
+    try {
+      const range = document.createRange();
+      range.setStart(sNode, sOff);
+      range.setEnd(eNode, eOff);
+      return range;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function unwrapHighlights() {
+    document.querySelectorAll('.ann-highlight').forEach(span => {
+      const parent = span.parentNode;
+      if (!parent) return;
+      while (span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span);
+      parent.normalize();
+    });
+  }
+
+  function applyHighlights() {
+    unwrapHighlights();
+    const here = loadAll().filter(a => a.report === REPORT_KEY);
+    if (here.length === 0) return;
+    for (const ann of here) {
+      const root = ann.anchor ? document.getElementById(ann.anchor) : document.body;
+      if (!root) continue;
+      const range = findTextRangeInRoot(root, ann.quote, ann.prefix, ann.suffix);
+      if (!range) { console.warn('annotation not located:', ann.id, ann.quote.slice(0, 30)); continue; }
+      const span = document.createElement('span');
+      span.className = 'ann-highlight ann-tag-' + ann.tag;
+      span.dataset.annId = ann.id;
+      span.title = (TAG_LABELS[ann.tag] || ann.tag) + ': ' + ann.comment + (ann.ai_hint ? '\n→ AI: ' + ann.ai_hint : '');
+      span.onclick = function (ev) {
+        ev.stopPropagation();
+        openListModal(ann.id);
+      };
+      try {
+        range.surroundContents(span);
+      } catch (e) {
+        // range crosses element boundary — fallback
+        try {
+          const frag = range.extractContents();
+          span.appendChild(frag);
+          range.insertNode(span);
+        } catch (e2) {
+          console.warn('failed to wrap annotation', ann.id, e2);
+        }
+      }
+    }
+  }
+
   // selection → tooltip
   let tooltip = null;
   document.addEventListener('mouseup', function (e) {
@@ -1183,8 +1355,11 @@ $$</p>
     modal.querySelector('textarea[name=ai_hint]').value = '';
     modal.querySelectorAll('.ann-tag').forEach(b => b.classList.remove('active'));
     modal.querySelector('.ann-tag[data-tag=question]').classList.add('active');
+    const ctx = captureContext(range, text);
     modal.dataset.quote = text;
     modal.dataset.anchor = anchor;
+    modal.dataset.prefix = ctx ? ctx.prefix : '';
+    modal.dataset.suffix = ctx ? ctx.suffix : '';
     modal.hidden = false;
     removeTooltip();
     setTimeout(() => modal.querySelector('textarea[name=comment]').focus(), 30);
@@ -1205,6 +1380,8 @@ $$</p>
       report: REPORT_KEY,
       anchor: modal.dataset.anchor || '',
       quote: modal.dataset.quote || '',
+      prefix: modal.dataset.prefix || '',
+      suffix: modal.dataset.suffix || '',
       tag: tag,
       comment: comment,
       ai_hint: aiHint,
@@ -1214,6 +1391,7 @@ $$</p>
     saveAll(all);
     modal.hidden = true;
     updateBadge();
+    applyHighlights();
   };
 
   modalCloseSetup('ann-modal-add');
@@ -1239,7 +1417,7 @@ $$</p>
   // list modal
   document.getElementById('ann-toolbar').onclick = openListModal;
 
-  function openListModal() {
+  function openListModal(scrollToId) {
     const all = loadAll();
     const listEl = document.querySelector('#ann-modal-list .ann-list');
     const statsEl = document.getElementById('ann-stats');
@@ -1265,6 +1443,20 @@ $$</p>
       bindCardActions();
     }
     document.getElementById('ann-modal-list').hidden = false;
+    if (scrollToId) {
+      setTimeout(function () {
+        const card = document.querySelector('.ann-card[data-id="' + scrollToId + '"]');
+        if (card) {
+          card.scrollIntoView({behavior: 'smooth', block: 'center'});
+          card.style.outline = '2px solid #1f3a5f';
+          card.style.outlineOffset = '2px';
+          setTimeout(function () {
+            card.style.outline = '';
+            card.style.outlineOffset = '';
+          }, 1800);
+        }
+      }, 60);
+    }
   }
 
   function renderCard(a) {
@@ -1288,6 +1480,7 @@ $$</p>
         const id = b.dataset.id;
         saveAll(loadAll().filter(a => a.id !== id));
         updateBadge();
+        applyHighlights();
         openListModal();
       };
     });
@@ -1372,6 +1565,7 @@ $$</p>
           const dedup = arr.filter(a => a && a.id && !seen.has(a.id));
           saveAll([...existing, ...dedup]);
           updateBadge();
+          applyHighlights();
           openListModal();
           alert('导入 ' + dedup.length + ' 条（跳过 ' + (arr.length - dedup.length) + ' 重复）');
         } catch (err) {
@@ -1389,6 +1583,7 @@ $$</p>
     if (!confirm('确定清空全部 ' + all.length + ' 条？（建议先 💾 备份 JSON）')) return;
     saveAll([]);
     updateBadge();
+    applyHighlights();
     openListModal();
   };
 
@@ -1397,6 +1592,12 @@ $$</p>
   }
 
   updateBadge();
+  // Apply highlights after fonts / images settle slightly
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(applyHighlights, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', applyHighlights);
+  }
 })();
 </script>
 <!-- ============ end annotation overlay ============ -->
