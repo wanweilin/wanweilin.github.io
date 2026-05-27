@@ -1704,5 +1704,611 @@ mcpmark run --task-id all --model gpt-5-medium \
 <p>报告截稿日期: 2026-05-25。Frontier Watch 附录覆盖截稿后涌现的新工作。</p>
 </footer>
 </div>
+<!-- ============ annotation overlay (inserted before </body>) ============ -->
+<style>
+  @media print {
+    #ann-toolbar, .ann-modal, #ann-tooltip { display: none !important; }
+  }
+  #ann-tooltip {
+    position: absolute;
+    background: #1f3a5f;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    z-index: 9000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    user-select: none;
+  }
+  #ann-tooltip:hover { background: #2a4d7a; }
+  #ann-toolbar {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 8000;
+    background: #1f3a5f;
+    color: #fff;
+    border-radius: 30px;
+    padding: 10px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+    user-select: none;
+    font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  }
+  #ann-toolbar:hover { background: #2a4d7a; }
+  #ann-badge {
+    background: #fff;
+    color: #1f3a5f;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .ann-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  }
+  .ann-modal[hidden] { display: none; }
+  .ann-modal-box {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 640px;
+    width: calc(100% - 40px);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .ann-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #d9d9d9;
+  }
+  .ann-modal-head h3 {
+    margin: 0;
+    color: #1f3a5f;
+    font-family: Georgia, serif;
+    font-size: 18px;
+  }
+  .ann-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .ann-modal-close:hover { color: #1f3a5f; }
+  .ann-quote-box {
+    background: #f6f7f9;
+    border-left: 3px solid #1f3a5f;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 14px;
+    color: #333;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .ann-anchor-label {
+    font-size: 12px;
+    color: #5a5a5a;
+    margin-bottom: 8px;
+  }
+  .ann-anchor-label code {
+    background: #f3f3f3;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  .ann-tags {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+  }
+  .ann-tag {
+    background: #f3f3f3;
+    border: 1px solid #d9d9d9;
+    border-radius: 16px;
+    padding: 5px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .ann-tag:hover { background: #e6e9ec; }
+  .ann-tag.active {
+    background: #1f3a5f;
+    color: #fff;
+    border-color: #1f3a5f;
+  }
+  .ann-modal label {
+    display: block;
+    font-size: 13px;
+    color: #5a5a5a;
+    margin: 14px 0 4px;
+    font-weight: 600;
+  }
+  .ann-modal textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .ann-modal textarea:focus {
+    outline: none;
+    border-color: #1f3a5f;
+  }
+  .ann-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .ann-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid #d9d9d9;
+    background: #f3f3f3;
+  }
+  .ann-btn:hover { background: #e6e9ec; }
+  .ann-btn-primary {
+    background: #1f3a5f;
+    color: #fff;
+    border-color: #1f3a5f;
+  }
+  .ann-btn-primary:hover { background: #2a4d7a; }
+  .ann-btn-danger { color: #9b2226; border-color: #d9bcbf; background: #fff; }
+  .ann-btn-danger:hover { background: #fdf0f0; }
+
+  /* list modal */
+  .ann-list-empty {
+    padding: 30px;
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+  }
+  .ann-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .ann-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #5a5a5a;
+    margin-bottom: 6px;
+  }
+  .ann-card-tag {
+    font-weight: 600;
+    color: #1f3a5f;
+  }
+  .ann-card-source {
+    flex: 1;
+    color: #888;
+    font-size: 11px;
+  }
+  .ann-card-quote {
+    font-size: 13px;
+    color: #333;
+    background: #f9fafb;
+    padding: 6px 10px;
+    border-left: 2px solid #1f3a5f;
+    margin: 6px 0;
+    line-height: 1.6;
+  }
+  .ann-card-comment {
+    font-size: 14px;
+    color: #1a1a1a;
+    margin: 6px 0;
+  }
+  .ann-card-aihint {
+    font-size: 12px;
+    color: #2d6a4f;
+    background: #f0f7f4;
+    padding: 4px 8px;
+    border-radius: 3px;
+    margin: 4px 0;
+  }
+  .ann-list-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .ann-list-toolbar .ann-stats {
+    flex: 1;
+    font-size: 13px;
+    color: #5a5a5a;
+    align-self: center;
+  }
+</style>
+
+<!-- floating toolbar -->
+<div id="ann-toolbar" title="查看 / 导出所有注释">
+  💬 <span id="ann-badge">0</span>
+</div>
+
+<!-- add modal -->
+<div id="ann-modal-add" class="ann-modal" hidden>
+  <div class="ann-modal-box">
+    <div class="ann-modal-head">
+      <h3>添加注释</h3>
+      <button class="ann-modal-close" data-target="ann-modal-add">×</button>
+    </div>
+    <div class="ann-anchor-label">章节: <code class="ann-anchor">?</code></div>
+    <div class="ann-quote-box ann-quote"></div>
+    <div class="ann-tags">
+      <span class="ann-tag active" data-tag="question">❓ 问题</span>
+      <span class="ann-tag" data-tag="note">📝 笔记</span>
+      <span class="ann-tag" data-tag="insight">💡 灵感</span>
+      <span class="ann-tag" data-tag="fact-check">🔍 待核实</span>
+    </div>
+    <label>你的想法 / 问题</label>
+    <textarea name="comment" rows="3" placeholder="例：这个对 long-context model 的 prefill 影响怎么算？"></textarea>
+    <label>希望 AI 怎么回应（可选）</label>
+    <textarea name="ai_hint" rows="2" placeholder="例：请用代码示例说明 + 推荐 1-2 篇相关 paper"></textarea>
+    <div class="ann-modal-actions">
+      <button class="ann-btn" data-close="ann-modal-add">取消</button>
+      <button class="ann-btn ann-btn-primary" id="ann-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- list modal -->
+<div id="ann-modal-list" class="ann-modal" hidden>
+  <div class="ann-modal-box">
+    <div class="ann-modal-head">
+      <h3>所有注释</h3>
+      <button class="ann-modal-close" data-target="ann-modal-list">×</button>
+    </div>
+    <div class="ann-list-toolbar">
+      <div class="ann-stats" id="ann-stats">—</div>
+      <button class="ann-btn ann-btn-primary" id="ann-export">📋 导出 Markdown</button>
+      <button class="ann-btn" id="ann-export-json">💾 备份 JSON</button>
+      <button class="ann-btn" id="ann-import-json">📥 导入 JSON</button>
+      <button class="ann-btn ann-btn-danger" id="ann-clear">🗑 全清</button>
+    </div>
+    <div class="ann-list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const ANN_KEY = 'wll-pretrain-eval-annotations-v1';
+  const REPORT_TITLES = {
+    'report-engineer.html': 'Part I — 工程实践者手册',
+    'report-researcher.html': 'Part II — 调研者综述',
+    'report-decision.html': 'Part III — 选型 Cookbook',
+  };
+  const TAG_LABELS = {
+    question: '❓ 问题',
+    note: '📝 笔记',
+    insight: '💡 灵感',
+    'fact-check': '🔍 待核实',
+  };
+  const REPORT_KEY = (location.pathname.split('/').pop() || 'unknown.html');
+  const REPORT_TITLE = REPORT_TITLES[REPORT_KEY] || REPORT_KEY;
+
+  function loadAll() {
+    try {
+      return JSON.parse(localStorage.getItem(ANN_KEY) || '[]');
+    } catch (e) {
+      console.warn('failed to parse annotations', e);
+      return [];
+    }
+  }
+  function saveAll(arr) {
+    localStorage.setItem(ANN_KEY, JSON.stringify(arr));
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function uuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'a-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  // selection → tooltip
+  let tooltip = null;
+  document.addEventListener('mouseup', function (e) {
+    if (e.target.closest('.ann-modal') || e.target.closest('#ann-toolbar') || e.target.closest('#ann-tooltip')) return;
+    setTimeout(showTooltipFromSelection, 10);
+  });
+  document.addEventListener('mousedown', function (e) {
+    if (e.target.id !== 'ann-tooltip') removeTooltip();
+  });
+
+  function showTooltipFromSelection() {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    if (!text || text.length < 3) { removeTooltip(); return; }
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+    removeTooltip();
+    tooltip = document.createElement('div');
+    tooltip.id = 'ann-tooltip';
+    tooltip.textContent = '💬 添加注释';
+    tooltip.style.left = (rect.right + window.scrollX) + 'px';
+    tooltip.style.top = (rect.top + window.scrollY - 35) + 'px';
+    tooltip.onclick = function () { openAddModal(text, range); };
+    document.body.appendChild(tooltip);
+  }
+
+  function removeTooltip() {
+    if (tooltip) tooltip.remove();
+    tooltip = null;
+  }
+
+  function findAnchor(range) {
+    let node = range && range.startContainer;
+    while (node && node !== document.body) {
+      if (node.nodeType === 1 && node.tagName === 'SECTION' && node.id) return node.id;
+      node = node.parentNode;
+    }
+    return '';
+  }
+
+  // add modal
+  function openAddModal(text, range) {
+    const anchor = findAnchor(range);
+    const modal = document.getElementById('ann-modal-add');
+    modal.querySelector('.ann-quote').textContent = text.length > 400 ? text.slice(0, 400) + '…' : text;
+    modal.querySelector('.ann-anchor').textContent = anchor || '(无 section)';
+    modal.querySelector('textarea[name=comment]').value = '';
+    modal.querySelector('textarea[name=ai_hint]').value = '';
+    modal.querySelectorAll('.ann-tag').forEach(b => b.classList.remove('active'));
+    modal.querySelector('.ann-tag[data-tag=question]').classList.add('active');
+    modal.dataset.quote = text;
+    modal.dataset.anchor = anchor;
+    modal.hidden = false;
+    removeTooltip();
+    setTimeout(() => modal.querySelector('textarea[name=comment]').focus(), 30);
+  }
+
+  document.getElementById('ann-save').onclick = function () {
+    const modal = document.getElementById('ann-modal-add');
+    const tag = modal.querySelector('.ann-tag.active').dataset.tag;
+    const comment = modal.querySelector('textarea[name=comment]').value.trim();
+    const aiHint = modal.querySelector('textarea[name=ai_hint]').value.trim();
+    if (!comment) {
+      alert('请写一句问题/想法');
+      return;
+    }
+    const all = loadAll();
+    all.push({
+      id: uuid(),
+      report: REPORT_KEY,
+      anchor: modal.dataset.anchor || '',
+      quote: modal.dataset.quote || '',
+      tag: tag,
+      comment: comment,
+      ai_hint: aiHint,
+      url: location.origin + location.pathname + (modal.dataset.anchor ? '#' + modal.dataset.anchor : ''),
+      created_at: new Date().toISOString(),
+    });
+    saveAll(all);
+    modal.hidden = true;
+    updateBadge();
+  };
+
+  modalCloseSetup('ann-modal-add');
+  modalCloseSetup('ann-modal-list');
+
+  document.querySelectorAll('#ann-modal-add .ann-tag').forEach(b => {
+    b.onclick = function () {
+      b.closest('.ann-tags').querySelectorAll('.ann-tag').forEach(o => o.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+
+  function modalCloseSetup(id) {
+    const m = document.getElementById(id);
+    m.querySelectorAll('.ann-modal-close, [data-close="'+id+'"]').forEach(b => {
+      b.onclick = () => m.hidden = true;
+    });
+    m.onclick = function (e) {
+      if (e.target === m) m.hidden = true;
+    };
+  }
+
+  // list modal
+  document.getElementById('ann-toolbar').onclick = openListModal;
+
+  function openListModal() {
+    const all = loadAll();
+    const listEl = document.querySelector('#ann-modal-list .ann-list');
+    const statsEl = document.getElementById('ann-stats');
+    if (all.length === 0) {
+      listEl.innerHTML = '<div class="ann-list-empty">还没注释。在 HTML 正文中划选 ≥3 字 → 点 "💬 添加注释" 开始。</div>';
+      statsEl.textContent = '共 0 条';
+    } else {
+      const counts = {};
+      all.forEach(a => counts[a.tag] = (counts[a.tag] || 0) + 1);
+      const tagSummary = Object.entries(counts).map(([k, v]) => TAG_LABELS[k] + ' ' + v).join(' · ');
+      statsEl.textContent = '共 ' + all.length + ' 条（' + tagSummary + '）';
+      // group by report, then by anchor
+      const grouped = {};
+      all.forEach(a => {
+        const key = REPORT_TITLES[a.report] || a.report;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(a);
+      });
+      listEl.innerHTML = Object.entries(grouped).map(function ([title, anns]) {
+        const cards = anns.map(renderCard).join('');
+        return '<h4 style="margin:18px 0 8px;color:#1f3a5f;font-family:Georgia,serif;font-size:15px;">' + escapeHtml(title) + ' (' + anns.length + ')</h4>' + cards;
+      }).join('');
+      bindCardActions();
+    }
+    document.getElementById('ann-modal-list').hidden = false;
+  }
+
+  function renderCard(a) {
+    return ''
+      + '<div class="ann-card" data-id="' + a.id + '">'
+      +   '<div class="ann-card-head">'
+      +     '<span class="ann-card-tag">' + escapeHtml(TAG_LABELS[a.tag] || a.tag) + '</span>'
+      +     '<span class="ann-card-source">§ ' + escapeHtml(a.anchor || '?') + '</span>'
+      +     '<button class="ann-btn ann-btn-danger" style="padding:2px 8px;font-size:12px;" data-action="del" data-id="' + a.id + '">删</button>'
+      +   '</div>'
+      +   '<div class="ann-card-quote">「' + escapeHtml(a.quote.length > 220 ? a.quote.slice(0, 220) + '…' : a.quote) + '」</div>'
+      +   '<div class="ann-card-comment">' + escapeHtml(a.comment) + '</div>'
+      +   (a.ai_hint ? '<div class="ann-card-aihint">→ AI: ' + escapeHtml(a.ai_hint) + '</div>' : '')
+      + '</div>';
+  }
+
+  function bindCardActions() {
+    document.querySelectorAll('[data-action=del]').forEach(b => {
+      b.onclick = function () {
+        if (!confirm('删这条注释？')) return;
+        const id = b.dataset.id;
+        saveAll(loadAll().filter(a => a.id !== id));
+        updateBadge();
+        openListModal();
+      };
+    });
+  }
+
+  // export
+  document.getElementById('ann-export').onclick = function () {
+    const all = loadAll();
+    if (all.length === 0) { alert('还没注释'); return; }
+    const md = buildMarkdown(all);
+    // copy to clipboard
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(md).then(
+        () => alert('已复制到剪贴板（' + all.length + ' 条）。同时下载 .md 文件。'),
+        () => alert('剪贴板失败，请用下载文件。')
+      );
+    }
+    // also download
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pretrain-llm-eval-annotations-' + new Date().toISOString().slice(0,10) + '.md';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 100);
+  };
+
+  function buildMarkdown(all) {
+    const counts = {};
+    all.forEach(a => counts[a.tag] = (counts[a.tag] || 0) + 1);
+    const tagSummary = Object.entries(counts).map(([k, v]) => (TAG_LABELS[k] || k) + ': ' + v).join(' · ');
+    let md = '# My Annotations — Pretrain LLM Eval Reports\n\n';
+    md += '**Exported:** ' + new Date().toISOString().slice(0, 10) + '\n';
+    md += '**Total:** ' + all.length + ' 条（' + tagSummary + '）\n\n---\n\n';
+    const grouped = {};
+    all.forEach(a => {
+      const key = REPORT_TITLES[a.report] || a.report;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(a);
+    });
+    Object.entries(grouped).forEach(function ([title, anns]) {
+      md += '## ' + title + '\n\n';
+      anns.forEach(function (a, i) {
+        const head = (a.comment.split('\n')[0] || '').slice(0, 60);
+        md += '### ' + (TAG_LABELS[a.tag] || a.tag) + ' #' + (i + 1) + ': ' + head + '\n\n';
+        md += '**Anchor:** `' + (a.anchor || '?') + '` · **Link:** ' + a.url + '\n\n';
+        md += '> ' + a.quote.replace(/\n/g, '\n> ') + '\n\n';
+        md += '**我的想法 / 问题：**\n' + a.comment + '\n\n';
+        if (a.ai_hint) md += '**希望 AI 怎么回应：**\n' + a.ai_hint + '\n\n';
+        md += '---\n\n';
+      });
+    });
+    return md;
+  }
+
+  // json backup / restore for cross-device
+  document.getElementById('ann-export-json').onclick = function () {
+    const all = loadAll();
+    const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'annotations-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 100);
+  };
+
+  document.getElementById('ann-import-json').onclick = function () {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = function (e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = function () {
+        try {
+          const arr = JSON.parse(r.result);
+          if (!Array.isArray(arr)) throw new Error('not array');
+          const existing = loadAll();
+          const seen = new Set(existing.map(a => a.id));
+          const dedup = arr.filter(a => a && a.id && !seen.has(a.id));
+          saveAll([...existing, ...dedup]);
+          updateBadge();
+          openListModal();
+          alert('导入 ' + dedup.length + ' 条（跳过 ' + (arr.length - dedup.length) + ' 重复）');
+        } catch (err) {
+          alert('解析失败: ' + err.message);
+        }
+      };
+      r.readAsText(f);
+    };
+    input.click();
+  };
+
+  document.getElementById('ann-clear').onclick = function () {
+    const all = loadAll();
+    if (all.length === 0) { alert('已是空的'); return; }
+    if (!confirm('确定清空全部 ' + all.length + ' 条？（建议先 💾 备份 JSON）')) return;
+    saveAll([]);
+    updateBadge();
+    openListModal();
+  };
+
+  function updateBadge() {
+    document.getElementById('ann-badge').textContent = loadAll().length;
+  }
+
+  updateBadge();
+})();
+</script>
+<!-- ============ end annotation overlay ============ -->
+
 </body>
 </html>

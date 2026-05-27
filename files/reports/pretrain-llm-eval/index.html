@@ -51,6 +51,28 @@
   }
   .pdf-link:hover { background: #1f3a5f; color: #fff; }
   .meta { margin-top: 40px; padding-top: 20px; border-top: 1px solid #d9d9d9; font-size: 13px; color: #5a5a5a; }
+  .howto {
+    background: #f0f7f4;
+    border-left: 3px solid #2d6a4f;
+    padding: 14px 18px;
+    margin: 30px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .howto h3 {
+    margin: 0 0 8px;
+    color: #2d6a4f;
+    font-family: Georgia, serif;
+    font-size: 16px;
+  }
+  .howto p { margin: 6px 0; font-size: 14px; }
+  .howto code {
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid #cfe1d6;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
 </style>
 </head>
 <body>
@@ -78,8 +100,16 @@
   </li>
 </ul>
 
+<div class="howto">
+  <h3>💬 划词注释 / 提问</h3>
+  <p>每份 HTML 报告右下角有 <code>💬 0</code> 浮动按钮。</p>
+  <p><strong>用法</strong>：正文中划选 ≥3 字 → 弹出 <code>💬 添加注释</code> → 选 tag (问题 / 笔记 / 灵感 / 待核实) → 写想法 + 可选"希望 AI 怎么回应"。所有注释存浏览器本地（localStorage），跨 3 份报告共享。</p>
+  <p><strong>导出</strong>：点右下角浮动按钮 → "📋 导出 Markdown" → 一键复制到剪贴板 + 下载 .md 文件（含 quote / 章节锚 / 你的问题 / AI hint），直接粘给 AI 助手就能带上下文提问。</p>
+  <p><strong>跨设备</strong>：在 A 机器 "💾 备份 JSON" → 在 B 机器 "📥 导入 JSON"。</p>
+</div>
+
 <div class="meta">
-  <p>作者：Weilin Wan · 生成于 2026-05-25 · 全部 fact-card 含 paper / repo / SOTA / critique 来源 URL · 60+ 篇 2025 后引用。</p>
+  <p>作者：Weilin Wan · 生成于 2026-05-25 · 注释功能 2026-05-27 上线 · 全部 fact-card 含 paper / repo / SOTA / critique 来源 URL · 60+ 篇 2025 后引用。</p>
   <p>注：Frontier Watch 附录诚实声明截稿后涌现的工作未深处理，建议 6-12 个月后回看。</p>
 </div>
 </div>
