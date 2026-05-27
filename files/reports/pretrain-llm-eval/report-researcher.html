@@ -1096,6 +1096,415 @@ P(\text{correct}_{i,s} = 1 \mid \theta_s, a_i, b_i) = \sigma(a_i (\theta_s - b_i
 <footer>
 <p>报告截稿日期: 2026-05-25。Frontier Watch 附录覆盖截稿后涌现的新工作。</p>
 </footer>
+<script type="application/json" id="qa-data">[{"id": "res-q1", "anchor": "01-theory", "quote": "其一，过去十年 NLP 评测的主流变迁——从 string-match metric，到 item-level 量化建模 (IRT)，再到 adversarial filtering 与 dynamic benchmark——并非由 LLM 单独驱动", "comment": "item-level这个IRT是什么，没听说过啊。我只知道现在的评测，和ppl之类的loss这样的指标。", "reply_html": "<p><strong>IRT<\/strong> = <strong>Item Response Theory<\/strong>（项目反应理论），心理测量学 1960s 起的标准工具，过去主要用在考试设计（SAT/GRE/TOEFL 全用 IRT 校准题目难度）。<\/p>\n<p>核心思想：<\/p>\n<ul>\n<li>每个考生有潜在 &quot;能力&quot; <span class=\"math inline\">\\theta<\/span>（latent ability）<\/li>\n<li>每道题有 &quot;难度&quot; <span class=\"math inline\">b<\/span> 和 &quot;区分度&quot; <span class=\"math inline\">a<\/span><\/li>\n<li>答对概率 <span class=\"math inline\">P(\\text{correct}) = \\sigma(a \\cdot (\\theta - b))<\/span><\/li>\n<\/ul>\n<p>为什么对 LLM eval 有用：<\/p>\n<ul>\n<li>传统 accuracy <strong>不区分<\/strong> &quot;100 难题对 50&quot; vs &quot;100 易题对 50&quot;——能力完全不同<\/li>\n<li>IRT 把&quot;模型能力&quot;从&quot;题目难度&quot;分离，得到比 accuracy 更精确的能力估计<\/li>\n<li>副产品：识别 benchmark 里&quot;区分度低&quot;的题（强弱模型都对/都错）→ 这类题对评估无贡献，应删<\/li>\n<\/ul>\n<p>NLP/LLM 圈 2019 起用：Lalor 2019 用于 SNLI、Vania 2021 用于 GLUE。但主流仍是 accuracy——因为 IRT 需多个模型在同 benchmark 上跑过（从模型间差异反推 <span class=\"math inline\">a, b<\/span>），冷启动困难。<\/p>\n<p>简单说：<strong>IRT 是把&quot;能力 / 题目难度&quot;显式建模出来的统计框架，信息更丰富但成本高<\/strong>。<\/p>\n", "tag": "question"}, {"id": "res-q2", "anchor": "01-theory", "quote": "MCQ 至少有四种协议给出实质不同的数字：(a) loglikelihood ranking——把每个选项作为 continuation 算 $\\log P$ 取 max；(b) byte-length normalization；(c) character-length normalization；(d) unconditional normalization——减去 prior $\\log P(\\text{option})$；以及 (e) generation-based answer extraction。", "comment": "这里这四种具体是什么意思，怎么计算。请用朴素的语言介绍，不要默认我懂。", "reply_html": "<p>假设题目：<\/p>\n<ul>\n<li>Prompt: &quot;What is the capital of France?\\nAnswer:&quot;<\/li>\n<li>4 选项: [&quot;Paris&quot;, &quot;London&quot;, &quot;Berlin&quot;, &quot;the capital city of France&quot;]<\/li>\n<li>答案: Paris<\/li>\n<\/ul>\n<p><strong>(a) Loglikelihood ranking (raw)<\/strong>: 每个选项接 prompt 后算 <code>log P(选项 | prompt)<\/code>：<\/p>\n<ul>\n<li>log P(Paris | prompt) = -2.3<\/li>\n<li>log P(London | prompt) = -4.5<\/li>\n<li>log P(Berlin | prompt) = -5.1<\/li>\n<li>log P(&quot;the capital city of France&quot; | prompt) = -8.0  ← 长选项天然低（token 概率连乘）<\/li>\n<\/ul>\n<p>选 max → Paris ✓ 但<strong>长选项不利<\/strong>。<\/p>\n<p><strong>(b) Byte-length normalization<\/strong>: <code>log P / 选项 byte 数<\/code>：<\/p>\n<ul>\n<li>-2.3/5=-0.46 (Paris)<\/li>\n<li>-4.5/6=-0.75 (London)<\/li>\n<li>-5.1/6=-0.85 (Berlin)<\/li>\n<li>-8.0/28=-0.29 (&quot;the capital...&quot; 现在最大了！)<\/li>\n<\/ul>\n<p>选 max → &quot;the capital city of France&quot; ✗ <strong>over-correct<\/strong>了<\/p>\n<p>byte-norm 假设每 byte 应有同等 log P，但累积难度不是线性。HellaSwag 上工作好（选项长度接近），MCQ 上常 over-correct。<\/p>\n<p><strong>(c) Character-length normalization<\/strong>: 类似 (b) 但分母换 char 数。对中文/多 byte chars 差异明显，本质同问题。<\/p>\n<p><strong>(d) Unconditional normalization<\/strong>: <code>log P(选项|prompt) - log P(选项)<\/code>，扣除&quot;该字符串本身在自然语言中的频次&quot;：<\/p>\n<ul>\n<li>-2.3 - (-7.0) = <strong>+4.7<\/strong> (Paris)<\/li>\n<li>-4.5 - (-7.5) = +3.0<\/li>\n<li>-5.1 - (-8.0) = +2.9<\/li>\n<li>-8.0 - (-15.0) = +7.0  ← 但这个还是最大<\/li>\n<\/ul>\n<p>衡量 &quot;prompt 让选项概率上升多少&quot;。<strong>最 robust<\/strong> 因为消除了&quot;语言频次偏置&quot;（&quot;the&quot; 等常见词的 default 高 log P）。<\/p>\n<p><strong>(e) Generation-based answer extraction<\/strong>: 不算 log P，让模型直接生成：<\/p>\n<pre><code>Prompt: &quot;What is the capital of France?\\nAnswer:&quot;\nModel output: &quot; Paris is the capital of...&quot;\n<\/code><\/pre>\n<p>用 regex 抓首词 → &quot;Paris&quot; → 对照 ground truth。<\/p>\n<p><strong>问题<\/strong>：base model 没指令能力，可能输出 &quot;I think the answer...&quot;，regex 抓不到，accuracy = 0。chat model OK。<\/p>\n<p>四种数字常差 5-15 pp。所以 &quot;MMLU 数字&quot; 必须问 &quot;用哪种 protocol&quot;。<\/p>\n", "tag": "question"}, {"id": "res-q3", "anchor": "01-theory", "quote": "他们的核心论点是 emergent ability 的 sharp jump 来自不连续 metric (如 EM) 的选择，换成 token-level cross-entropy 等连续 metric 后曲线变光滑。Schaeffer 的批评虽然主要靶子是 metric 而非 IRT，但其底层逻辑——\"模型能力是 latent variable，accuracy 是 noisy projection\"——恰恰是 IRT 的世界观。", "comment": "没太看懂，这里的应该是说：涌现能力来源于评测时metric的选择。因为metric是离散的，所以在模型能力线形增长是，metric无法反映；而在越过某个界限后，则能够反映了，因而表现为从0跃升至1的涌现现象。对吗？", "reply_html": "<p><strong>对的，几乎完美<\/strong>。Schaeffer et al. 2023 核心 argument 就是你说的：<\/p>\n<ol>\n<li>模型能力（如 token-level cross-entropy loss）随 scale <strong>平滑下降<\/strong><\/li>\n<li>但用<strong>离散<\/strong> metric（如 exact-match accuracy &quot;答对=1 答错=0&quot;）测时，曲线看起来是 0→0→0→<strong>突然 80%<\/strong> 的 sharp jump<\/li>\n<li>用<strong>连续<\/strong> metric（token-level log-likelihood、partial-credit accuracy）重测同实验，曲线变<strong>平滑上升<\/strong><\/li>\n<\/ol>\n<p>所以 &quot;emergent ability&quot; 不是模型在某 scale 突然获得新能力，而是 metric 非线性造成的视觉错觉。<\/p>\n<p>补充：这个观点不是没反驳。后续 Wei 2024、Du 2024 指出<strong>有些 emergence 真的无法用 metric artifact 解释<\/strong>（如 in-context learning 在某 scale 才显著、grokking 现象）。现在共识：<strong>部分 emergence 是 metric 假象，部分是真实能力跳变<\/strong>。Schaeffer 论文更多是方法论警钟：&quot;看到 emergence 时先怀疑 metric&quot;。<\/p>\n", "tag": "question"}, {"id": "res-q4", "anchor": "01-theory", "quote": "anti-saturation 和 impact 一起构成 benchmark-level 健康度三轴。", "comment": "anti-saturation和impact又分别是什么？", "reply_html": "<p>这是 <strong>Benchmark Health Index (BHI)<\/strong> 论文（arxiv 2602.11674）提的 3 个 benchmark 评价轴：<\/p>\n<ol>\n<li><strong>Capability Discrimination（区分度）<\/strong>：当前 frontier 模型在 benchmark 上分数差异够大不？所有 frontier 都 95%+ → 区分度 0。MMLU 早期高，现在低（饱和）。<\/li>\n<li><strong>Anti-saturation（抗饱和性）<\/strong>：benchmark 还有上升空间吗？人类基线远在 SOTA 之上 → 抗饱和强。AIME/FrontierMath 强；HellaSwag/HumanEval 弱。<\/li>\n<li><strong>Impact（影响力）<\/strong>：业界/学界把这个 benchmark 当 ground truth 引用的频度。高 impact = 大家都报 → 改动它会改 narrative。MMLU 高 impact；某 niche math benchmark 低 impact。<\/li>\n<\/ol>\n<p><strong>三轴中只有 capability + anti-saturation 都强的 benchmark 才&quot;健康&quot;<\/strong>。MMLU 现在 impact 高但 discrimination + anti-saturation 低 → BHI 评级&quot;过气贵族&quot;。<\/p>\n<p>BHI 论文跑了 106 benchmark × 91 模型，给每个 benchmark 算 BHI 综合分。<\/p>\n", "tag": "question"}, {"id": "res-q5", "anchor": "01-theory", "quote": "它第一次把\"benchmark 自身是否值得用\"作为 first-class research question 提出，而不是把 benchmark 视作不可质疑的标尺", "comment": "这句话没看懂，什么意思呢？什么叫first-class research question? 这里的意思是，BHI第一次将benchmark自身的价值作为第一研究对象？", "reply_html": "<p><strong>对的<\/strong>。术语解释：<\/p>\n<p>&quot;first-class&quot; 是 CS / 数学术语，&quot;在系统里享有完整公民权的对象&quot;。例如 Python 里函数是 &quot;first-class object&quot;——可以被传参、返回、赋值，跟 int/string 一样地位平等。<\/p>\n<p>&quot;first-class research question&quot; 引申为：<strong>这个问题本身就是研究目标，而不是研究别的东西的副产品<\/strong>。<\/p>\n<p>BHI 之前：<\/p>\n<ul>\n<li>benchmark 是研究<strong>模型<\/strong>的工具——大家关心&quot;我的模型在 MMLU 几分&quot;<\/li>\n<li>没人系统问 &quot;MMLU 本身好不好用&quot;——只有零星批评 paper<\/li>\n<\/ul>\n<p>BHI 之后：<\/p>\n<ul>\n<li>&quot;benchmark 本身的质量&quot; 成了<strong>值得发 paper 的独立研究主题<\/strong><\/li>\n<li>BHI 提供 metric 让你能量化 &quot;X benchmark 比 Y 健康&quot;<\/li>\n<\/ul>\n<p>这个 paradigm shift（从&quot;用 benchmark 评模型&quot;到&quot;评 benchmark 自身&quot;）是评测领域过去两年最重要的转向之一。daVinci-LLM / Judge Reliability Harness / CCV 都是这个 shift 的产物。<\/p>\n", "tag": "question"}, {"id": "res-q6", "anchor": "01-theory", "quote": "但 NLP 评测的另一系列问题——annotation artifacts、surface statistical shortcut、reporting bias——发生在 item pool 构造阶段：测试题本身可能允许模型走 lexical / 句法捷径 fake 出能力。这正是 adversarial / contrastive 评测设计的出发点。", "comment": "我觉得你需要具体介绍这些annotation artifacts, surface statistical shortcut...这些分别是什么意思", "reply_html": "<p>三个都是&quot;benchmark 里隐藏的捷径&quot;，让模型可以&quot;假答对&quot;。<\/p>\n<p><strong>Annotation artifacts<\/strong>: 因为人类标注员的习惯/偏好，<strong>标签和某些表层特征不该相关但相关了<\/strong>。<\/p>\n<p>经典例子（SNLI/NLI 任务）：<\/p>\n<ul>\n<li>标注员被告知&quot;写 entailment/contradiction/neutral 三类 hypothesis&quot;<\/li>\n<li>结果他们写 contradiction 时倾向用 &quot;no/never/not&quot;<\/li>\n<li>模型不读 premise，只看 hypothesis 是否含 &quot;no&quot; → accuracy 67% &gt; random 33%<\/li>\n<li>Gururangan 2018 揭示这个 → SNLI 的 &quot;neutral baseline&quot; 远高于 33%<\/li>\n<\/ul>\n<p><strong>Surface statistical shortcut<\/strong>: benchmark 输入的浅层统计（n-gram、词频）跟 label 显著相关，模型走捷径。<\/p>\n<p>例：CommonsenseQA 题 &quot;早晨喝什么？&quot; 选项含 &quot;coffee&quot;/&quot;iron&quot;/&quot;rope&quot;/&quot;ladder&quot;。&quot;coffee&quot; 在英文 corpus 跟 &quot;morning&quot; 共现 1000+ 次，模型靠 PMI（点互信息）就能选对，不需理解&quot;喝&quot;/&quot;早晨&quot;。<\/p>\n<p>跟 annotation artifact 的区别：artifact 是<strong>人类标注<\/strong>留下的痕迹（怎么写题）；shortcut 是<strong>世界统计<\/strong>留下的痕迹（哪些词常一起出现）。<\/p>\n<p><strong>Reporting bias<\/strong>: 训练数据来自人写的文本，<strong>人不写显然的东西<\/strong>，所以&quot;显然事实&quot;在 corpus 里反而少。<\/p>\n<p>例：人不写&quot;鸟会飞&quot;（显然），但写&quot;企鹅不会飞&quot;（反常）。结果 LM 学到 P(企鹅不飞) &gt; P(鸟飞)。benchmark 里 &quot;哪个能飞&quot; 题，模型选 &quot;ostrich&quot; 而非 &quot;robin&quot;——答错了——但其实是 corpus 偏置使然。<\/p>\n<p>三个共同点：<strong>accuracy 升高 ≠ 能力升高<\/strong>，因为 benchmark 提供了&quot;假能力&quot;通路。<\/p>\n", "tag": "question"}, {"id": "res-q7", "anchor": "01-theory", "quote": "第三，filter 引入对人类的偏置：Schwartz 等 CoNLL 2017 [17] 在 Story Cloze 上发现，人写的 \"right ending\" 在风格上倾向更短、更轻量，仅靠 endings-only classifier 即可达 ~72%（random=50%）。", "comment": "这里的缩写和专有词汇导致我看不懂。比如right ending是什么，endings-only classifier的作用是什么？这里的可达72%意味着什么？", "reply_html": "<p><strong>Story Cloze Test<\/strong>（2016 推出）：给 4 句话故事开头 → 模型选第 5 句结尾从 2 个候选里：<\/p>\n<ul>\n<li>一个是合理结尾（标注员写的，叫 &quot;right ending&quot;）<\/li>\n<li>一个是 fake 结尾（错的）<\/li>\n<\/ul>\n<p><strong>Endings-only classifier<\/strong>: Schwartz 2017 的 controversial 实验——<strong>完全不看前 4 句故事<\/strong>，<strong>只把 2 个候选 ending 单独丢给模型<\/strong>，让它猜哪个是 &quot;right ending&quot;。结果 accuracy ≈ 72%（random 50%）。<\/p>\n<p><strong>72% 意味着什么<\/strong>：right ending 跟 fake ending 在风格 / 长度 / 词汇上<strong>系统性不同<\/strong>——right ending 是众包标注员认真写的，倾向 &quot;narrative voice&quot; 更自然；fake ending 是冲反例造的，更突兀。模型不读故事就能从这些表层差异里<strong>学会判断 &quot;哪个更像 right ending 风格&quot;<\/strong>。<\/p>\n<p>→ Story Cloze 上 &quot;95% accuracy&quot; 的模型，可能只是 72% 来自&quot;识别 right ending 风格&quot; + 23% 来自&quot;理解故事&quot;。<strong>bench 测的不全是它声称要测的<\/strong>（commonsense reasoning）。<\/p>\n<p>这是 Q6 里 annotation artifact 的经典案例——标注员写作习惯泄露进了 label。HellaSwag (2019) 把这一发现作出发点，用 adversarial filtering 主动排除这类捷径。<\/p>\n", "tag": "question"}, {"id": "res-q8", "anchor": "01-theory", "quote": "与其 once-for-all 对抗 filter", "comment": "什么叫做once-for-all对抗filter？", "reply_html": "<p>&quot;Once-for-all&quot; = &quot;一劳永逸&quot;。指 HellaSwag 等 benchmark 的造题策略：<\/p>\n<ol>\n<li>数据集构造时跑一个 sentence-classifier（如 BERT-base）作 adversarial filter<\/li>\n<li>把太容易（模型一眼能选对）的题剔掉<\/li>\n<li>剩下的就是 &quot;对当时模型 hard&quot; 的题<\/li>\n<li>数据集 <strong>freeze<\/strong>，从此不变<\/li>\n<\/ol>\n<p>为什么叫 once-for-all：filter 只用 <strong>一次<\/strong>，结果是 <strong>静态<\/strong> 数据集。<\/p>\n<p>问题：filter 用的 classifier 是 BERT-base（2019），但 frontier 模型早就比它强 100×。<strong>对 BERT-base 难的题对 GPT-5 一点都不难<\/strong>——HellaSwag 早就被 frontier 模型刷到 95%+。<\/p>\n<p>对比 <strong>dynamic/continuous<\/strong> filter（MixEval / Arena-Hard 月更）：随 frontier 模型升级<strong>持续 re-filter<\/strong>，让 benchmark 保持难度。成本高、复现性差。<\/p>\n<p>once-for-all 是历史选择（造一次用十年），dynamic 是 future direction（持续维护）。<\/p>\n", "tag": "question"}, {"id": "res-q9", "anchor": "01-theory", "quote": "MixEval [19] 用真实 user query 加权挑题，把 distribution 从 benchmark 静态对齐到 wild query 真实分布", "comment": "这个具体是怎么做的？什么叫用user query加权挑题？", "reply_html": "<p>想法：现实里用户问 LLM 的问题分布跟学术 benchmark 的分布<strong>不一致<\/strong>。MMLU 是学科考试，但真实用户 80% 是 &quot;帮我写邮件&quot; / &quot;解释这段代码&quot;。<\/p>\n<p>MixEval 做法（粗略）：<\/p>\n<ol>\n<li><strong>采集 wild query corpus<\/strong>：从公开 chat log / ShareGPT 等抓 ~10 万条真实用户 query<\/li>\n<li><strong>embedding 化<\/strong>：每条 user query 编码成向量<\/li>\n<li><strong>遍历 benchmark 库<\/strong>（MMLU 14k + TriviaQA 95k + DROP 9k 等 13 个 benchmark）<\/li>\n<li><strong>匹配<\/strong>：每条 user query 找最近邻的几道 benchmark 题<\/li>\n<li><strong>加权采样<\/strong>：被多个 user query 命中的 benchmark 题获得更高权重，更可能被选进 MixEval<\/li>\n<li><strong>构成 MixEval 子集<\/strong>：~5000 道题，覆盖 13 个 benchmark，但比例由 user query 分布决定<\/li>\n<\/ol>\n<p>效果：MixEval 上分数高的模型在真实 user usage 上也强，相关性比单跑 MMLU 高。<\/p>\n<p>副作用：方法虽好，frozen 的 user query corpus 跟原始 benchmark 一样会过时——MixEval-Hard 加 dynamic refresh，但 2024-08 后没更新过（_KNOWN-ISSUES.md 提过）。<\/p>\n", "tag": "question"}, {"id": "res-q10", "anchor": "01-theory", "quote": "lm-evaluation-harness、HELM、OLMES、DCLM、BabyLM 在 framework 层面给出了几条互有张力的设计哲学，值得对比。", "comment": "所以，在大模型评测领域里，这几个框架就是最出名的吗？", "reply_html": "<p><strong>是<\/strong>，五个是 2026 主流 framework 的 95%：<\/p>\n<table>\n<thead>\n<tr>\n<th>Framework<\/th>\n<th>出处<\/th>\n<th>定位<\/th>\n<th>用量<\/th>\n<\/tr>\n<\/thead>\n<tbody>\n<tr>\n<td><strong>lm-evaluation-harness<\/strong><\/td>\n<td>EleutherAI 2021<\/td>\n<td>工具中性、最广 task 覆盖<\/td>\n<td>占主导（HF Open LLM v1/v2 都基于它）<\/td>\n<\/tr>\n<tr>\n<td><strong>HELM v1/v2<\/strong><\/td>\n<td>Stanford 2022/2024<\/td>\n<td>scenario × adapter × metric 三轴解耦<\/td>\n<td>学术 paper 常引<\/td>\n<\/tr>\n<tr>\n<td><strong>OLMES<\/strong><\/td>\n<td>AI2 2024<\/td>\n<td>base-vs-chat 二分协议 + reproducibility 严控<\/td>\n<td>OLMo / Llama / Qwen base eval 标准<\/td>\n<\/tr>\n<tr>\n<td><strong>DCLM<\/strong><\/td>\n<td>UW+MIT+AI2 2024<\/td>\n<td>把 eval 跟数据 ablation 绑定<\/td>\n<td>DataComp-LM 数据集挑战标杆<\/td>\n<\/tr>\n<tr>\n<td><strong>BabyLM<\/strong><\/td>\n<td>MIT 等 2023<\/td>\n<td>小数据 pretrain (100M word) eval 套件<\/td>\n<td>niche，ACL 用<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<p>次主流：HF lighteval（HF 内部）、Inspect AI（UK AISI 出，agent-focused）。<\/p>\n<p>实操推荐：<\/p>\n<ul>\n<li>做 pretrain base 评估 → <strong>OLMES + lm-eval-harness<\/strong><\/li>\n<li>发 reproducible paper → <strong>HELM v2<\/strong><\/li>\n<\/ul>\n<p>详见 Part I §3 &quot;框架对比&quot;。<\/p>\n", "tag": "question"}, {"id": "res-q11", "anchor": "01-theory", "quote": "lm-evaluation-harness [20] 选择\"工具中性\"路线：抽象 task 为 loglikelihood / generate_until / multiple_choice 四类 request，setup 选择交给研究者。它的优势是覆盖广（v0.4.12 含 60+ task）、社区贡献活跃；其代价是 OLMES paper 直白点出的 \"presents task setups as open choices\"——同一 task 在不同论文给出不同数字。HuggingFace Open LLM Leaderboard 2025-03 退休公告 [21] 把这一张力提到了 community 自省层面：HF 团队自承\"leaderboard could encourage people to hill climb irrelevant directions in the field\"，承认 static benchmark mean-score 的范式正在失去意义。", "comment": "这段话说的似乎是两件事。前半部分说的是open setup导致细节上的标准不同，导致同一个bench在不同的论文中可以给出不同但是都“正确”的数字，失去了比较意义。而后半段说的似乎是lm-evaluation-harness把所有任务都取它们mean score；以及承认他们前面的做法会导致encourage研究者不在正道上优化lm", "reply_html": "<p>你的解读 90% 对，精确一下：<\/p>\n<p><strong>前半段<\/strong>：lm-eval-harness 故意把 &quot;setup 选择&quot;（normalization、few-shot 数、prompt 模板）<strong>留给用户<\/strong>，不强制 default。优点：覆盖广 + 灵活；缺点：同一 task 不同论文给出不同数字（A 用 byte-norm 报 75%，B 用 acc 报 68%，都&quot;对&quot;），无法直接比。OLMES 抓痛点，把每个 task 的 setup 全 hardcode。<\/p>\n<p><strong>后半段<\/strong>（HF Open LLM Leaderboard 2025-03 退休）：HuggingFace 团队自己反思——他们把 6 个 benchmark 的 mean score 当排名，<strong>激励&quot;刷榜&quot;<\/strong>（hill climb 这 6 个）而不是真做好模型。team 自承 &quot;the leaderboard could encourage people to hill climb irrelevant directions&quot;——决定退休。<\/p>\n<p>你说 &quot;lm-eval-harness 取所有任务 mean score&quot; <strong>不完全准<\/strong>：lm-eval-harness 只跑 task 报每个 task 数字，<strong>不算 mean<\/strong>。&quot;取 mean&quot; 是 HF Leaderboard 在 lm-eval-harness 之上加的一层 ranking 逻辑。退休的是 leaderboard，不是 harness。<\/p>\n<p>但你抓到了核心：community 认识到 &quot;benchmark mean score → ranking&quot; 范式有问题。<\/p>\n", "tag": "question"}, {"id": "res-q12", "anchor": "01-theory", "quote": "100M-word ceiling 不是\"评测对象\"，而是\"研究问题的边界\"。", "comment": "我没看过这个论文，这句话的意思是这篇论文只研究100M token训练量的模型吗？", "reply_html": "<p><strong>是<\/strong>，<strong>BabyLM Challenge<\/strong> 限定 pretrain 数据上限：<\/p>\n<ul>\n<li>BabyLM Challenge 2023 规定参赛模型<strong>最多用 100M word<\/strong> 训练<\/li>\n<li>100M word ≈ 一个孩子从出生到 13 岁听到的语言总量<\/li>\n<li>目标：研究<strong>人类儿童在小数据下学语言<\/strong>的机制，看能否用 100M word 训出能解释人类语言习得的小模型<\/li>\n<\/ul>\n<p>注意 <strong>100M word ≠ 100M token<\/strong>：1 word 通常 1-2 token（取决于 tokenizer），100M word ≈ 130-200M token。<\/p>\n<p>BabyLM 2024 改规则：multilingual 加入、限制 100M words/language。BabyLM 2026 加 multimodal track。<\/p>\n<p>为什么这章引用 BabyLM：它代表一种 <strong>&quot;非 scaling-law&quot;<\/strong> 研究路线——不是 &quot;数据越多越好&quot;，而是 &quot;如何在 sample-efficient regime 下做评测&quot;。跟 DCLM（data-centric、大规模）形成方法论对比。<\/p>\n<p>报告那句 &quot;ceiling 不是评测对象而是研究问题的边界&quot; 意思：100M word 这个上限不是被&quot;测试&quot;的对象（&quot;看模型在 100M 限制下表现&quot;），而是<strong>研究问题的设定<\/strong>（&quot;什么样的小数据训练能学到啥&quot;）。<\/p>\n", "tag": "question"}, {"id": "res-q13", "anchor": "01-theory", "quote": "题目是否含 annotation artifact", "comment": "这是什么？", "reply_html": "<p>见 Q6 的 annotation artifact 解释。这里是 BHI 评 benchmark 健康度时的一个<strong>检测项<\/strong>——给一道 benchmark 题，问：<\/p>\n<p>→ 这题的标签能否从浅层特征（不需理解题意的特征）预测出来？比如：<\/p>\n<ul>\n<li>标签是否跟某些关键词强相关？<\/li>\n<li>题目长度是否跟标签相关？<\/li>\n<li>选项之间长度差是否跟正确选项相关？<\/li>\n<\/ul>\n<p>如果可以，这题&quot;含 annotation artifact&quot;，对评估真实推理能力有害。BHI 通过 ablation 测这个比例，比例高 → benchmark 健康度下降。<\/p>\n<p>具体怎么测：训练一个<strong>只看部分输入<\/strong>（只看选项 / 只看 question 不看 context）的小 baseline → 看它能否远超 random。能超 → 说明有 shortcut。<\/p>\n", "tag": "question"}, {"id": "res-q14", "anchor": "01-theory", "quote": "是否对 paraphrase / Lorem ipsum 等 ablation 鲁棒（WinoWhat、GoldenSwag）；", "comment": "这又是什么？", "reply_html": "<p>另一种检测 shortcut 的方法：<strong>做 ablation 实验<\/strong>，看 benchmark 答案是否对干扰因素鲁棒。<\/p>\n<p>两种典型：<\/p>\n<p><strong>(a) Paraphrase ablation<\/strong>: 把题目 paraphrase 成同义但不同表达，看模型 accuracy 变不变。<\/p>\n<ul>\n<li>原始表达 90%，paraphrase 后掉到 50% → 模型没真懂题意，只是记住原始表达的某些 token<\/li>\n<li><strong>WinoWhat<\/strong> (2025) 用此方法测 WinoGrande，发现 paraphrase 后 frontier model 大幅退化<\/li>\n<\/ul>\n<p><strong>(b) Lorem ipsum ablation<\/strong>: 用无意义文本（Lorem ipsum 是 Latin 填充文本）替换部分 context，看 accuracy 是否还高。<\/p>\n<ul>\n<li>替换后 accuracy 没掉太多 → 模型实际没用 context，靠 shortcut 答题<\/li>\n<li><strong>GoldenSwag<\/strong> (2025) 用此方法测 HellaSwag，发现 ≥65% 题目即使没 question 部分模型也能猜对——说明 endings 本身就泄露答案<\/li>\n<\/ul>\n<p>两个都是 BHI / benchmark health 评估的<strong>主动测试<\/strong>手段。<\/p>\n<p>简单说：<strong>&quot;benchmark 是否对 ablation 鲁棒&quot; 是健康度信号<\/strong>——鲁棒度高的 benchmark 更可信。<\/p>\n", "tag": "question"}, {"id": "res-q15", "anchor": "01-theory", "quote": "是否依赖标注质量 (MMLU-Redux 6.49% 错率)。", "comment": "有不依赖标注质量的吗？", "reply_html": "<p>几乎没有完全不依赖的，但有<strong>显著降低<\/strong>标注依赖的几条路线：<\/p>\n<p><strong>完全不依赖人工标注 (programmatic/synthetic 标注)<\/strong>:<\/p>\n<ul>\n<li><strong>HumanEval / MBPP<\/strong>: 标签是&quot;代码能不能通过单元测试&quot;。单元测试<strong>机器执行<\/strong>，不依赖人工判对错。但<strong>单元测试本身的覆盖率<\/strong>人写的——这层在。HumanEval+ (EvalPlus) 把单元测试扩 80× 就是为减少这层依赖。<\/li>\n<li><strong>GSM8K<\/strong>: 标签是数学题最终数字。机器可 verify（sympy / <code>==<\/code>）。但题目本身是人写的——这层在。<\/li>\n<li><strong>NIAH (Needle-in-Haystack)<\/strong>: 把&quot;针&quot; needle 随机插入 haystack 文本，问模型 needle 是什么。完全 programmatic 生成，无人工标。但任务过于单一。<\/li>\n<\/ul>\n<p><strong>降低标注依赖<\/strong>:<\/p>\n<ul>\n<li><strong>Live benchmark<\/strong> (LiveCodeBench): 持续抓 LeetCode 新题，&quot;标签&quot; = leetcode 平台给的判题结果。新题不可能 contaminate，且判题机器化。但 leetcode 平台改判定 / 改题就影响数据集。<\/li>\n<\/ul>\n<p><strong>完全依赖 (传统 MCQ)<\/strong>:<\/p>\n<ul>\n<li>MMLU / TriviaQA / NaturalQuestions / HellaSwag 等——标签都靠人工，受 6%+ 错率影响<\/li>\n<\/ul>\n<p>MMLU-Redux (Gema et al. 2024) 重新标 MMLU 子集发现 <strong>6.49% 题目有错<\/strong>（answer key 错、题目歧义、选项错）。这意味着 MMLU 上 <strong>6.49% 是天花板<\/strong>——模型再强也突破不了，因为答案本身错了。<\/p>\n<p><strong>总结<\/strong>：没有完全不依赖人工标的 benchmark，但 <strong>execution-based + live<\/strong> 路线在系统降低依赖。<\/p>\n", "tag": "question"}]</script>
+<aside id="qa-margin"></aside>
+<!-- ============ QA balloons (Word-style 评论-回复，inserted before </body>) ============ -->
+<style>
+  /* QA highlight (different color from user's ann-highlight) */
+  .qa-highlight {
+    background: rgba(120, 180, 250, 0.32);
+    box-shadow: inset 0 -2px 0 rgba(31, 58, 95, 0.55);
+    border-radius: 2px;
+    padding: 1px 0;
+    cursor: pointer;
+    transition: filter 0.15s, outline 0.2s;
+  }
+  .qa-highlight:hover { filter: brightness(0.93); }
+  .qa-highlight.qa-focused {
+    outline: 2px solid #1f3a5f;
+    outline-offset: 2px;
+  }
+
+  /* Make .wrap a positioning context so #qa-margin's left:100% anchors to wrap */
+  .wrap { position: relative; }
+
+  /* When QA data is present, shift the wrap left so margin column has room */
+  @media (min-width: 1300px) {
+    body:has(#qa-margin) .wrap {
+      margin-left: 40px;
+      margin-right: auto;
+    }
+  }
+
+  /* Margin column container (placed inside .wrap) */
+  #qa-margin {
+    position: absolute;
+    left: 100%;
+    margin-left: 24px;
+    top: 0;
+    width: 280px;
+    pointer-events: none;
+  }
+  #qa-margin .qa-balloon {
+    pointer-events: auto;
+    position: absolute;
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #c5d6e8;
+    border-radius: 6px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    transition: top 0.25s ease-out, box-shadow 0.15s;
+    cursor: pointer;
+  }
+  #qa-margin .qa-balloon:hover {
+    box-shadow: 0 3px 10px rgba(0,0,0,0.14);
+    border-color: #1f3a5f;
+  }
+  #qa-margin .qa-balloon.qa-flash {
+    box-shadow: 0 0 0 2px #1f3a5f, 0 3px 10px rgba(0,0,0,0.14);
+    border-color: #1f3a5f;
+  }
+  .qa-balloon-q {
+    font-size: 12.5px;
+    color: #1f3a5f;
+    font-weight: 600;
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .qa-balloon-q::before { content: '❓ '; font-weight: normal; }
+  .qa-balloon-quote {
+    font-size: 11.5px;
+    color: #5a5a5a;
+    border-left: 2px solid #c5d6e8;
+    padding: 2px 8px;
+    margin: 6px 0;
+    max-height: 56px;
+    overflow: hidden;
+    font-family: Georgia, serif;
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .qa-balloon-a {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #c5d6e8;
+  }
+  .qa-balloon-a::before {
+    content: '💡 解答';
+    display: block;
+    font-size: 10.5px;
+    color: #2d6a4f;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  /* style the rendered markdown inside .qa-balloon-a */
+  .qa-balloon-a > * { font-size: 13px; line-height: 1.55; }
+  .qa-balloon-a p { margin: 4px 0 6px; }
+  .qa-balloon-a code {
+    background: #eef2f7;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 11.5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  .qa-balloon-a pre, .qa-balloon-a pre code {
+    font-size: 11px;
+    background: #eef2f7;
+    padding: 6px 8px;
+    border-radius: 3px;
+    max-height: 200px;
+    overflow: auto;
+    line-height: 1.4;
+    border-left: none;
+    margin: 4px 0;
+    display: block;
+  }
+  .qa-balloon-a ul, .qa-balloon-a ol { padding-left: 18px; margin: 4px 0 6px; }
+  .qa-balloon-a li { margin: 2px 0; }
+  .qa-balloon-a table {
+    font-size: 11.5px;
+    margin: 4px 0 6px;
+  }
+  .qa-balloon-a th, .qa-balloon-a td {
+    padding: 4px 6px;
+    font-size: 11.5px;
+  }
+  .qa-balloon-a strong { color: #1a1a1a; }
+
+  /* Hint for narrow screens — show small indicator + open via title tooltip */
+  @media (max-width: 1299px) {
+    #qa-margin { display: none; }
+    .qa-highlight::after {
+      content: '💬';
+      font-size: 0.75em;
+      vertical-align: super;
+      margin-left: 2px;
+    }
+  }
+
+  /* Print mode: hide margin, convert highlights to numbered footrefs */
+  @media print {
+    #qa-margin { display: none !important; }
+    .qa-highlight {
+      background: none !important;
+      box-shadow: none !important;
+      border-bottom: 1px dotted #1f3a5f !important;
+    }
+    .qa-highlight::after {
+      content: " [QA" attr(data-qa-idx) "]";
+      font-size: 0.72em;
+      vertical-align: super;
+      color: #1f3a5f;
+    }
+    .qa-print-appendix { display: block !important; }
+  }
+  .qa-print-appendix {
+    display: none;
+    margin-top: 30px;
+    padding-top: 16px;
+    border-top: 2px solid #c5d6e8;
+    font-size: 11pt;
+  }
+  .qa-print-appendix h3 {
+    font-family: Georgia, serif;
+    color: #1f3a5f;
+    font-size: 14pt;
+    margin: 0 0 10px;
+  }
+  .qa-print-appendix .qa-print-item {
+    margin: 10px 0 14px;
+    page-break-inside: avoid;
+  }
+  .qa-print-appendix .qa-print-item-head {
+    font-weight: 600;
+    color: #1f3a5f;
+    margin-bottom: 4px;
+  }
+  .qa-print-appendix blockquote {
+    margin: 4px 0;
+    padding: 4px 10px;
+    border-left: 2px solid #c5d6e8;
+    color: #5a5a5a;
+    font-size: 10.5pt;
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  const dataEl = document.getElementById('qa-data');
+  if (!dataEl) return;
+  let qaData;
+  try {
+    qaData = JSON.parse(dataEl.textContent);
+  } catch (e) {
+    console.warn('qa-data parse failed:', e);
+    return;
+  }
+  if (!Array.isArray(qaData) || qaData.length === 0) return;
+
+  // -------- helpers (subset of overlay's text-find logic) --------
+
+  function findTextRange(root, quote) {
+    if (!quote) return null;
+    // strip $ delimiters (math) and normalize whitespace
+    const normalized = quote.replace(/\$/g, '').replace(/\s+/g, ' ').trim();
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let flat = '';
+    const map = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      const nt = n.data;
+      map.push({ node: n, start: flat.length, end: flat.length + nt.length });
+      flat += nt;
+    }
+    const flatN = flat.replace(/\s+/g, ' ');
+    // build mapping from flatN index -> flat index (since we collapsed whitespace, lengths differ)
+    // simpler: search in flat directly with first attempt; if fail, try collapsed
+    let idx = flat.indexOf(quote);
+    let qlen = quote.length;
+    if (idx < 0) {
+      idx = flat.replace(/\$/g, '__$__').indexOf(quote.replace(/\$/g, '__$__'));  // fallback
+    }
+    if (idx < 0) {
+      // try without $ in source
+      const flatNoDollar = flat;  // dollarmath already stripped $; just search normalized quote
+      idx = flatNoDollar.indexOf(normalized);
+      qlen = normalized.length;
+    }
+    if (idx < 0) return null;
+    const endOff = idx + qlen;
+    let sNode = null, sOff = 0, eNode = null, eOff = 0;
+    for (const m of map) {
+      if (!sNode && m.start <= idx && idx < m.end) {
+        sNode = m.node; sOff = idx - m.start;
+      }
+      if (!eNode && m.start < endOff && endOff <= m.end) {
+        eNode = m.node; eOff = endOff - m.start;
+        break;
+      }
+    }
+    if (!sNode || !eNode) return null;
+    try {
+      const r = document.createRange();
+      r.setStart(sNode, sOff);
+      r.setEnd(eNode, eOff);
+      return r;
+    } catch (e) { return null; }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // -------- wrap quotes in <mark class="qa-highlight"> --------
+
+  function wrapQuotes() {
+    qaData.forEach(function (qa, idx) {
+      const section = qa.anchor ? document.getElementById(qa.anchor) : null;
+      if (!section) { console.warn('qa anchor not found:', qa.anchor); return; }
+      const range = findTextRange(section, qa.quote);
+      if (!range) { console.warn('qa quote not located:', qa.id, qa.quote.slice(0, 40)); return; }
+      const mark = document.createElement('mark');
+      mark.className = 'qa-highlight';
+      mark.dataset.qaId = qa.id;
+      mark.dataset.qaIdx = String(idx + 1);
+      mark.title = (qa.comment || '').slice(0, 200);
+      try {
+        range.surroundContents(mark);
+      } catch (e) {
+        try {
+          const frag = range.extractContents();
+          mark.appendChild(frag);
+          range.insertNode(mark);
+        } catch (e2) {
+          console.warn('qa wrap failed for', qa.id, e2);
+          return;
+        }
+      }
+      mark.onclick = function (ev) {
+        ev.stopPropagation();
+        focusBalloon(qa.id);
+      };
+    });
+  }
+
+  // -------- render margin balloons --------
+
+  function renderBalloons() {
+    const margin = document.getElementById('qa-margin');
+    if (!margin) return;
+    qaData.forEach(function (qa) {
+      const b = document.createElement('div');
+      b.className = 'qa-balloon';
+      b.dataset.qaId = qa.id;
+      const qPreview = qa.quote.length > 110 ? qa.quote.slice(0, 110) + '…' : qa.quote;
+      b.innerHTML = ''
+        + '<div class="qa-balloon-q">' + escapeHtml(qa.comment || '') + '</div>'
+        + '<div class="qa-balloon-quote">「' + escapeHtml(qPreview) + '」</div>'
+        + '<div class="qa-balloon-a">' + (qa.reply_html || '') + '</div>';
+      b.onclick = function (ev) {
+        // ignore clicks on links inside reply
+        if (ev.target.tagName === 'A') return;
+        scrollToHighlight(qa.id);
+      };
+      margin.appendChild(b);
+    });
+  }
+
+  // -------- position balloons aligned to highlights --------
+
+  function positionBalloons() {
+    const margin = document.getElementById('qa-margin');
+    if (!margin) return;
+    const wrap = margin.parentElement;  // .wrap
+    const wrapTop = wrap.getBoundingClientRect().top + window.scrollY;
+    const balloons = Array.from(margin.querySelectorAll('.qa-balloon'));
+    let lastBottom = -Infinity;
+    const gap = 12;
+    balloons.forEach(function (b) {
+      const id = b.dataset.qaId;
+      const mark = document.querySelector('.qa-highlight[data-qa-id="' + id + '"]');
+      if (!mark) { b.style.display = 'none'; return; }
+      const markTop = mark.getBoundingClientRect().top + window.scrollY - wrapTop;
+      let top = markTop;
+      if (top < lastBottom + gap) top = lastBottom + gap;
+      b.style.top = top + 'px';
+      lastBottom = top + b.offsetHeight;
+    });
+  }
+
+  function focusBalloon(id) {
+    const b = document.querySelector('.qa-balloon[data-qa-id="' + id + '"]');
+    if (!b) return;
+    b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    b.classList.add('qa-flash');
+    setTimeout(function () { b.classList.remove('qa-flash'); }, 1800);
+  }
+
+  function scrollToHighlight(id) {
+    const mark = document.querySelector('.qa-highlight[data-qa-id="' + id + '"]');
+    if (!mark) return;
+    mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    mark.classList.add('qa-focused');
+    setTimeout(function () { mark.classList.remove('qa-focused'); }, 1800);
+  }
+
+  // -------- print appendix --------
+
+  function renderPrintAppendix() {
+    // group by anchor → place appendix at end of each section for clean print
+    const bySection = {};
+    qaData.forEach(function (qa, idx) {
+      if (!bySection[qa.anchor]) bySection[qa.anchor] = [];
+      bySection[qa.anchor].push({ ...qa, _idx: idx + 1 });
+    });
+    Object.keys(bySection).forEach(function (anchor) {
+      const sec = document.getElementById(anchor);
+      if (!sec) return;
+      const items = bySection[anchor];
+      const ap = document.createElement('div');
+      ap.className = 'qa-print-appendix';
+      ap.innerHTML = '<h3>本节问答 (' + items.length + ')</h3>' + items.map(function (q) {
+        return ''
+          + '<div class="qa-print-item">'
+          +   '<div class="qa-print-item-head">[QA' + q._idx + '] ' + escapeHtml(q.comment) + '</div>'
+          +   '<blockquote>' + escapeHtml(q.quote.length > 200 ? q.quote.slice(0, 200) + '…' : q.quote) + '</blockquote>'
+          +   q.reply_html
+          + '</div>';
+      }).join('');
+      sec.appendChild(ap);
+    });
+  }
+
+  // -------- init --------
+
+  function init() {
+    wrapQuotes();
+    renderBalloons();
+    renderPrintAppendix();
+    // Position once after layout settles, then again after fonts/KaTeX render
+    requestAnimationFrame(positionBalloons);
+    setTimeout(positionBalloons, 400);
+    setTimeout(positionBalloons, 1200);
+    let resizeT;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(positionBalloons, 100);
+    });
+    // re-position when math finishes rendering (KaTeX changes heights)
+    const obs = new MutationObserver(function () {
+      requestAnimationFrame(positionBalloons);
+    });
+    obs.observe(document.body, { subtree: false, attributes: true, attributeFilter: ['data-math-ready'] });
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(init, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();
+</script>
+<!-- ============ end QA balloons ============ -->
+
 </div>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
 <script>
