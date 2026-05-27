@@ -117,6 +117,52 @@ a:hover { text-decoration: underline; }
 
 footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--c-line); font-size: 13px; color: var(--c-muted); }
 
+/* footnotes (mdit-py-plugins) */
+sup.footnote-ref {
+  font-size: 0.78em;
+  vertical-align: super;
+  line-height: 0;
+  margin: 0 1px;
+}
+sup.footnote-ref a {
+  text-decoration: none;
+  color: var(--c-accent);
+}
+sup.footnote-ref a:hover { text-decoration: underline; }
+section.footnotes {
+  margin-top: 50px;
+  padding-top: 18px;
+  border-top: 2px solid var(--c-line);
+  font-size: 13px;
+  color: var(--c-text);
+}
+section.footnotes::before {
+  content: "Footnotes";
+  display: block;
+  font-family: Georgia, serif;
+  font-size: 16px;
+  color: var(--c-primary);
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+section.footnotes ol.footnotes-list {
+  padding-left: 24px;
+  margin: 0;
+}
+section.footnotes li.footnote-item {
+  margin: 6px 0;
+  padding-left: 4px;
+  line-height: 1.5;
+}
+section.footnotes li.footnote-item p { margin: 2px 0; }
+a.footnote-backref {
+  text-decoration: none;
+  margin-left: 4px;
+  color: var(--c-muted);
+  font-size: 12px;
+}
+a.footnote-backref:hover { color: var(--c-primary); }
+
 @media print {
   body { padding: 0; font-size: 11pt; line-height: 1.5; }
   .wrap { max-width: 100%; padding: 0 8mm; }
@@ -130,6 +176,10 @@ footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--c-line
   a { color: var(--c-primary); text-decoration: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.85em; color: var(--c-muted); }
   footer { font-size: 9pt; }
+  section.footnotes { font-size: 9pt; page-break-before: auto; }
+  section.footnotes a[href^="http"]::after { content: none; }
+  sup.footnote-ref a[href^="http"]::after, sup.footnote-ref a::after { content: none; }
+  a.footnote-backref { display: none; }
   @page {
     size: A4;
     margin: 20mm 18mm 22mm 18mm;
@@ -216,22 +266,62 @@ footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--c-line
 <ul>
 <li><strong>ckpt 加载阶段</strong>：tokenizer 与 base model 错配（如复用 chat-tuned tokenizer 跑 base 评测）、<code>pad_token_id</code> 未设导致 batched inference 输出全 EOS、<code>max_position_embeddings</code> 与 task <code>target_length</code> 不匹配。→ 第 2 章 lm-eval-harness 内部 <code>_loglikelihood_tokens</code> 详解。</li>
 <li><strong>Task 渲染</strong>：few-shot 示例的随机种子、prompt 末尾换行符、<code>doc_to_text</code> / <code>doc_to_target</code> 的 token 边界。→ 第 2 章。</li>
-<li><strong>Backend 差异</strong>：vLLM 与 HF Transformers 的 logprob 数值不一致（vLLM 在 logits 处理上使用 chunked prefill，与 HF 在第 16 位以下有差异）。Biderman 等的 2024 lm-eval-harness 主 paper 明示 HF 为 reference，vLLM 数字与 HF 在 MMLU 上偶有 0.2–0.5 pp 抖动[^biderman2024lessons]。→ 第 3 章框架对比。</li>
+<li><strong>Backend 差异</strong>：vLLM 与 HF Transformers 的 logprob 数值不一致（vLLM 在 logits 处理上使用 chunked prefill，与 HF 在第 16 位以下有差异）。Biderman 等的 2024 lm-eval-harness 主 paper 明示 HF 为 reference，vLLM 数字与 HF 在 MMLU 上偶有 0.2–0.5 pp 抖动<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>。→ 第 3 章框架对比。</li>
 <li><strong>Stop tokens / EOT</strong>：GSM8K 生成时如果 stop sequence 配错，模型会一路生成到 <code>max_tokens=512</code>，pass@1 数字虚低 5–10 pp；HumanEval 没正确截到 <code>def </code> 边界会把测试代码也生成出来，sandbox 执行报错被判 fail。→ 第 4 章经典 benchmark 实操。</li>
 <li><strong>Reasoning era 的 max_tokens</strong>：DeepSeek R1 / o3-mini 等 reasoning 模型 thinking token 平均 8k–32k，常规 <code>max_tokens=2048</code> 直接截断在 thinking 中间。→ 第 5 章。</li>
-<li><strong>Submission JSON</strong>：传统 leaderboard 要求 <code>results_*.json</code> 直接上传；OpenEvals hub 退役后散落到 200+ 垂直 leaderboard，每家 schema 不同[^hf-leaderboard-retirement]。→ 第 3 章。</li>
+<li><strong>Submission JSON</strong>：传统 leaderboard 要求 <code>results_*.json</code> 直接上传；OpenEvals hub 退役后散落到 200+ 垂直 leaderboard，每家 schema 不同<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>。→ 第 3 章。</li>
 </ul>
 <h2>一个 pretrain run 的 eval cadence</h2>
 <p>7B–32B scale pretrain 项目典型评测节奏：</p>
-<p>| Frequency | 跑什么 | Wall-clock | 工具 |
-|---|---|---|---|
-| 每 1k step | 训练 loss / val perplexity | 秒级 | 训练框架自带 |
-| 每 5k step | 5–8 task 的 lightweight probe（in-training-probing） | ~3 min | probe inference[^liu2026probing] |
-| 每 20k step | OLMES Base Easy（10 task 子集） | ~20 min | <code>olmes</code> CLI |
-| 每 100k step | OLMES Base Main + DCLM 53-task core | ~2 h | <code>olmes</code> + <code>dclm</code> |
-| Final / milestone | OLMES 43 task 全套 + HELM Capabilities + custom held-out | ~6 h | OLMES + HELM |
-| Release | 上述全部 + leaderboard 提交 + 第三方 audit | days | 全栈 |</p>
-<p>后两节细化中间层（probe / Base Easy / Base Main）的工具链与 cadence 选择，本章不再展开。要点是：<strong>不要把 final-milestone 那套全跑频率拉到每 5k step</strong>——单次 OLMES 43 task 跑完一次的 GPU-hour 等于一个 lightweight probe 跑 200 次。in-training-probing paper 实测每 checkpoint 1h → 3min 的 20x 加速[^liu2026probing]，是中间监控的关键。</p>
+<table>
+<thead>
+<tr>
+<th>Frequency</th>
+<th>跑什么</th>
+<th>Wall-clock</th>
+<th>工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每 1k step</td>
+<td>训练 loss / val perplexity</td>
+<td>秒级</td>
+<td>训练框架自带</td>
+</tr>
+<tr>
+<td>每 5k step</td>
+<td>5–8 task 的 lightweight probe（in-training-probing）</td>
+<td>~3 min</td>
+<td>probe inference<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup></td>
+</tr>
+<tr>
+<td>每 20k step</td>
+<td>OLMES Base Easy（10 task 子集）</td>
+<td>~20 min</td>
+<td><code>olmes</code> CLI</td>
+</tr>
+<tr>
+<td>每 100k step</td>
+<td>OLMES Base Main + DCLM 53-task core</td>
+<td>~2 h</td>
+<td><code>olmes</code> + <code>dclm</code></td>
+</tr>
+<tr>
+<td>Final / milestone</td>
+<td>OLMES 43 task 全套 + HELM Capabilities + custom held-out</td>
+<td>~6 h</td>
+<td>OLMES + HELM</td>
+</tr>
+<tr>
+<td>Release</td>
+<td>上述全部 + leaderboard 提交 + 第三方 audit</td>
+<td>days</td>
+<td>全栈</td>
+</tr>
+</tbody>
+</table>
+<p>后两节细化中间层（probe / Base Easy / Base Main）的工具链与 cadence 选择，本章不再展开。要点是：<strong>不要把 final-milestone 那套全跑频率拉到每 5k step</strong>——单次 OLMES 43 task 跑完一次的 GPU-hour 等于一个 lightweight probe 跑 200 次。in-training-probing paper 实测每 checkpoint 1h → 3min 的 20x 加速<sup class="footnote-ref"><a href="#fn3" id="fnref3:1">[3:1]</a></sup>，是中间监控的关键。</p>
 <h2>本部分阅读路径</h2>
 <p>剩余章节按&quot;工具栈深度 → benchmark 类别&quot;两条线展开：</p>
 <ul>
@@ -241,14 +331,22 @@ footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--c-line
 </ul>
 <p>Part II（调研）讨论 benchmark 自身的 critique（contamination、validity、saturation），Part III（决策）给出&quot;什么 stage 跑什么 benchmark&quot;的总图。本 Part I 只解决&quot;跑得起来、跑得对、数字可复现&quot;三件事。</p>
 <h2>引用</h2>
-<p>[^biderman2024lessons]: Biderman, S. et al. (2024). <em>Lessons from the Trenches on Reproducible Evaluation of Language Models</em>. arXiv:2405.14782.</p>
-<p>[^hf-leaderboard-retirement]: clefourrier @ HuggingFace. (2025-03-13). <em>It's been a wild ride, folks :) (end of the Open LLM Leaderboard)</em>. https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135.</p>
-<p>[^liu2026probing]: Liu, Z., Lun, T., Wen, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025.</p>
+<hr class="footnotes-sep" />
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Biderman, S. et al. (2024). <em>Lessons from the Trenches on Reproducible Evaluation of Language Models</em>. arXiv:2405.14782. <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>clefourrier @ HuggingFace. (2025-03-13). <em>It's been a wild ride, folks :) (end of the Open LLM Leaderboard)</em>. https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135. <a href="#fnref2" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn3" class="footnote-item"><p>Liu, Z., Lun, T., Wen, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025. <a href="#fnref3" class="footnote-backref">↩︎</a> <a href="#fnref3:1" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 <section id="02-harness">
 <h2>为什么要读源码</h2>
-<p>EleutherAI 的 lm-evaluation-harness（PyPI <code>lm-eval</code>，命令行 <code>lm_eval</code>）是 HF Open LLM Leaderboard v1/v2 的后端、OLMES / OpenCompass 的兼容标准、frontier lab 内测的 reference 工具。任何在它之上的二次开发——加 task、换 backend、debug 数字偏差——都绕不开三个目录：<code>lm_eval/api/</code>、<code>lm_eval/tasks/</code>、<code>lm_eval/models/</code>。Biderman 等 2024 paper 把它定位为对 prompt 微扰高敏感性、跨方法学不可比、复现性不足三类问题的对策[^biderman2024lessons]，但同时承认默认 setup 仍开放——读源码是用好它的前提，不是可选。</p>
+<p>EleutherAI 的 lm-evaluation-harness（PyPI <code>lm-eval</code>，命令行 <code>lm_eval</code>）是 HF Open LLM Leaderboard v1/v2 的后端、OLMES / OpenCompass 的兼容标准、frontier lab 内测的 reference 工具。任何在它之上的二次开发——加 task、换 backend、debug 数字偏差——都绕不开三个目录：<code>lm_eval/api/</code>、<code>lm_eval/tasks/</code>、<code>lm_eval/models/</code>。Biderman 等 2024 paper 把它定位为对 prompt 微扰高敏感性、跨方法学不可比、复现性不足三类问题的对策<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>，但同时承认默认 setup 仍开放——读源码是用好它的前提，不是可选。</p>
 <p>当前 stable v0.4.12（2026-05-11 release）。下文给出的文件路径以 <code>main</code> 分支为准；行号在 0.4.x 系列内基本稳定。</p>
 <h2>目录骨架</h2>
 <pre><code>lm-evaluation-harness/
@@ -338,7 +436,7 @@ task_alias: abstract_algebra
 dataset_name: abstract_algebra
 description: &quot;The following are multiple choice questions (about abstract algebra).\n\n&quot;
 </code></pre>
-<p><code>include</code> 关键字层叠合并；<code>description</code> 在 <code>doc_to_text</code> 前拼接，是 5-shot prompt 的 system 段。这是 OLMES paper 反复批评的&quot;开放选择&quot;：harness 把 prompt template 暴露给 task author，自由选 description 措辞、<code>Answer:</code> 后是否带空格、选项是 <code>A.</code> 还是 <code>(A)</code> 还是 <code>A:</code>，每一处都可能在不同模型上有 1–3 pp 漂移[^gu2024olmes]。</p>
+<p><code>include</code> 关键字层叠合并；<code>description</code> 在 <code>doc_to_text</code> 前拼接，是 5-shot prompt 的 system 段。这是 OLMES paper 反复批评的&quot;开放选择&quot;：harness 把 prompt template 暴露给 task author，自由选 description 措辞、<code>Answer:</code> 后是否带空格、选项是 <code>A.</code> 还是 <code>(A)</code> 还是 <code>A:</code>，每一处都可能在不同模型上有 1–3 pp 漂移<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>。</p>
 <p><code>mmlu_*</code> 的 group 配置在 <code>lm_eval/tasks/mmlu/default/_mmlu.yaml</code>：</p>
 <pre><code class="language-yaml">group: mmlu
 group_alias: MMLU
@@ -476,8 +574,8 @@ return {
     &quot;acc_norm&quot;: float(pred_norm == doc[&quot;label&quot;]),
 }
 </code></pre>
-<p><code>/ len(c)</code> 这一步在 byte 单位上做 normalize（用 Python <code>len(str)</code> 而非 <code>len(tokenizer.encode(c))</code>——这是 EleutherAI 在 blog 里反复澄清的点[^eleuther-mcq-norm]）。HellaSwag 候选续写长度差异大（最短 5 词、最长 25 词），不 normalize 时模型几乎总选最短候选，acc 与 acc_norm 通常差 10–15 pp。</p>
-<p>EleutherAI 自家 blog 实测：byte / char / unconditioned / acc_norm 四种 normalize 在同一模型同一 task 上数字差 5–15 pp[^eleuther-mcq-norm]。OLMES 把 cloze-formulation task 的 normalize 钉为 character-length；harness 默认是 byte-length——两数字不能直接比。</p>
+<p><code>/ len(c)</code> 这一步在 byte 单位上做 normalize（用 Python <code>len(str)</code> 而非 <code>len(tokenizer.encode(c))</code>——这是 EleutherAI 在 blog 里反复澄清的点<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup>）。HellaSwag 候选续写长度差异大（最短 5 词、最长 25 词），不 normalize 时模型几乎总选最短候选，acc 与 acc_norm 通常差 10–15 pp。</p>
+<p>EleutherAI 自家 blog 实测：byte / char / unconditioned / acc_norm 四种 normalize 在同一模型同一 task 上数字差 5–15 pp<sup class="footnote-ref"><a href="#fn3" id="fnref3:1">[3:1]</a></sup>。OLMES 把 cloze-formulation task 的 normalize 钉为 character-length；harness 默认是 byte-length——两数字不能直接比。</p>
 <h2>vLLM backend 的差异点</h2>
 <p><code>lm_eval/models/vllm_causallms.py:VLLM.loglikelihood</code> 调 vLLM 的 <code>LLM.generate(..., prompt_logprobs=1)</code>，把 prompt 段的 token-level logprob 一次性拿回。优点是 paged-attention 大幅提速；代价：</p>
 <ul>
@@ -485,7 +583,7 @@ return {
 <li><strong>Tensor parallel + reduction order</strong> 不同 GPU 数下 all-reduce 顺序不一致，bf16 累加非交换；在 MMLU 14042 题上 score 抖动 ±0.1–0.3 pp。</li>
 <li><strong><code>prompt_logprobs=1</code></strong> 只返回每位置 top-1 logprob，sum 时按 ctx+cont token id 索引——若 tokenizer 对 continuation 前导空格处理不同（HF Llama tokenizer 偶有 <code>&quot; A&quot;</code> 编成 <code>[259, 32]</code> vs <code>[284]</code>），数字不对。</li>
 </ul>
-<p>Biderman 等明示：<strong>正式 leaderboard 数字仍用 HF backend</strong>，vLLM 仅作 sanity check[^biderman2024lessons]。一个常见 workflow：开发时 vLLM 跑全套 + 抓信号；release 前 HF 重跑顶层 task 复核。</p>
+<p>Biderman 等明示：<strong>正式 leaderboard 数字仍用 HF backend</strong>，vLLM 仅作 sanity check<sup class="footnote-ref"><a href="#fn1" id="fnref1:1">[1:1]</a></sup>。一个常见 workflow：开发时 vLLM 跑全套 + 抓信号；release 前 HF 重跑顶层 task 复核。</p>
 <h2>generate_until 的隐患</h2>
 <p>GSM8K task YAML（<code>lm_eval/tasks/gsm8k/gsm8k-cot.yaml</code>）：</p>
 <pre><code class="language-yaml">task: gsm8k_cot
@@ -545,7 +643,7 @@ metadata:
         rnd = random.Random(seed)
         return rnd.sample(self.docs, n)
 </code></pre>
-<p><code>fewshot_seed</code> 在 <code>lm_eval/__main__.py</code> 通过 CLI <code>--seed</code> 透传。默认 <code>--seed 0,1234,1234,1234</code>（fewshot seed = 1234）。但<strong>不同 lm-eval 版本 default 不同</strong>：v0.3.x 的 default 是 0，v0.4.x 改为 1234。同一模型同一 task 跨版本可能 0.5–1.5 pp 漂移就因为这个。OLMES 的 canonical setup 强制固定 example 列表（不允许随机），就是为绕开此问题[^gu2024olmes]。</p>
+<p><code>fewshot_seed</code> 在 <code>lm_eval/__main__.py</code> 通过 CLI <code>--seed</code> 透传。默认 <code>--seed 0,1234,1234,1234</code>（fewshot seed = 1234）。但<strong>不同 lm-eval 版本 default 不同</strong>：v0.3.x 的 default 是 0，v0.4.x 改为 1234。同一模型同一 task 跨版本可能 0.5–1.5 pp 漂移就因为这个。OLMES 的 canonical setup 强制固定 example 列表（不允许随机），就是为绕开此问题<sup class="footnote-ref"><a href="#fn2" id="fnref2:1">[2:1]</a></sup>。</p>
 <p>把 seed 固定 + 把 <code>--log_samples</code> 打开，重跑差异在 0.001 pp 量级；任何更大的差异都是 backend / harness 版本 bug。</p>
 <h2>Chat template 与 base 模型的歧义</h2>
 <p><code>--apply_chat_template</code> 在 0.4.4 之后开放。<code>lm_eval/api/task.py:fewshot_context</code> 大概逻辑：</p>
@@ -565,8 +663,8 @@ metadata:
 else:
     ctx = self._build_legacy_fewshot_prompt(doc, fewshot_examples)
 </code></pre>
-<p><code>fewshot_as_multiturn</code> 决定 few-shot example 是单 turn 拼成长 prompt，还是 N 轮多 turn——HF Open LLM Leaderboard v2 chat 模型默认开 <code>fewshot_as_multiturn</code>[^hf-leaderboard]，与 base 模型的&quot;长 prompt 一气呵成&quot;setup 不同。两数字在 IFEval / BBH 上可能差 3–5 pp。</p>
-<p>针对 base ckpt，<strong>永远不应 <code>--apply_chat_template</code></strong>——base 模型从未见过 <code>&lt;|im_start|&gt;system\n</code> 这类 token，logprob 在这些 token 上是 noise，会把 MCQ task 数字打下来 5–20 pp。Biderman 等的 paper 第 4 节明示此类 chat-template fallback 是新人最常踩的坑[^biderman2024lessons]。</p>
+<p><code>fewshot_as_multiturn</code> 决定 few-shot example 是单 turn 拼成长 prompt，还是 N 轮多 turn——HF Open LLM Leaderboard v2 chat 模型默认开 <code>fewshot_as_multiturn</code><sup class="footnote-ref"><a href="#fn4" id="fnref4">[4]</a></sup>，与 base 模型的&quot;长 prompt 一气呵成&quot;setup 不同。两数字在 IFEval / BBH 上可能差 3–5 pp。</p>
+<p>针对 base ckpt，<strong>永远不应 <code>--apply_chat_template</code></strong>——base 模型从未见过 <code>&lt;|im_start|&gt;system\n</code> 这类 token，logprob 在这些 token 上是 noise，会把 MCQ task 数字打下来 5–20 pp。Biderman 等的 paper 第 4 节明示此类 chat-template fallback 是新人最常踩的坑<sup class="footnote-ref"><a href="#fn1" id="fnref1:2">[1:2]</a></sup>。</p>
 <h2>多 task 调度与 Reorderer</h2>
 <p><code>lm_eval/utils.py:Reorderer</code> 是 throughput 关键。原理：把所有 <code>(context, continuation)</code> 按 <code>len(context) + len(continuation)</code> 降序排，padding 浪费最小化；最长的一组先跑，避免末尾&quot;长 sample 落单&quot;。</p>
 <pre><code class="language-python">class Reorderer:
@@ -628,31 +726,92 @@ def process_results(doc, results):
 <li><strong>MMLU 子任务数字奇怪</strong>：subset 名拼错（<code>mmlu_us_foreign_policy</code> vs <code>mmlu_high_school_us_history</code>），harness 静默跳过——结果 JSON 里少 subset，主分数被错误平均。</li>
 </ol>
 <h2>在 0.4.x 之后的演化</h2>
-<p>lm-eval-harness 在 issue #2002 跟踪吸收 OLMES 标准的进展——具体讨论：normalization 默认是否切到 <code>acc_norm</code>、few-shot example pool 是否固定、<code>apply_chat_template</code> 是否对 base 模型 explicit 报错。截至 v0.4.12，部分 OLMES 推荐已 backport（如 cloze formulation 的 <code>acc_norm</code> 默认），其余仍在讨论[^biderman2024lessons]。OLMES 自身也以 <code>allenai/olmes</code> 包外挂在 harness 之上——这一点会在第 3 章框架对比章详谈。</p>
+<p>lm-eval-harness 在 issue #2002 跟踪吸收 OLMES 标准的进展——具体讨论：normalization 默认是否切到 <code>acc_norm</code>、few-shot example pool 是否固定、<code>apply_chat_template</code> 是否对 base 模型 explicit 报错。截至 v0.4.12，部分 OLMES 推荐已 backport（如 cloze formulation 的 <code>acc_norm</code> 默认），其余仍在讨论<sup class="footnote-ref"><a href="#fn1" id="fnref1:3">[1:3]</a></sup>。OLMES 自身也以 <code>allenai/olmes</code> 包外挂在 harness 之上——这一点会在第 3 章框架对比章详谈。</p>
 <p>读到这一步，你已经能：写新 task YAML 时不踩边界 bug、能在 <code>samples_*.jsonl</code> 里 audit 任意一条样本的全链路、能解释为什么自家数字与 paper 差 X pp。这是工程实践的最小工作底层。</p>
 <h2>引用</h2>
-<p>[^biderman2024lessons]: Biderman, S. et al. (2024). <em>Lessons from the Trenches on Reproducible Evaluation of Language Models</em>. arXiv:2405.14782.</p>
-<p>[^gu2024olmes]: Gu, Y., Tafjord, O., Kuehl, B., Haddad, D., Dodge, J., Hajishirzi, H. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (Findings of NAACL 2025).</p>
-<p>[^eleuther-mcq-norm]: EleutherAI Blog. <em>Multiple Choice Normalization in LM Evaluation</em>. https://blog.eleuther.ai/multiple-choice-normalization/.</p>
-<p>[^lm-eval-repo]: EleutherAI. <em>lm-evaluation-harness</em>. https://github.com/EleutherAI/lm-evaluation-harness.</p>
-<p>[^lm-eval-issue-2002]: EleutherAI. <em>Implementing lessons from OLMES (issue #2002)</em>. https://github.com/EleutherAI/lm-evaluation-harness/issues/2002.</p>
-<p>[^hf-leaderboard]: HuggingFace. (2024-06-26). <em>Open-LLM performances are plateauing, let's make the leaderboard steep again (Open LLM Leaderboard v2 blog)</em>. https://huggingface.co/spaces/open-llm-leaderboard/blog. 2025-03-13 retirement: https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135.</p>
+<hr class="footnotes-sep" />
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Biderman, S. et al. (2024). <em>Lessons from the Trenches on Reproducible Evaluation of Language Models</em>. arXiv:2405.14782. <a href="#fnref1" class="footnote-backref">↩︎</a> <a href="#fnref1:1" class="footnote-backref">↩︎</a> <a href="#fnref1:2" class="footnote-backref">↩︎</a> <a href="#fnref1:3" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>Gu, Y., Tafjord, O., Kuehl, B., Haddad, D., Dodge, J., Hajishirzi, H. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (Findings of NAACL 2025). <a href="#fnref2" class="footnote-backref">↩︎</a> <a href="#fnref2:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn3" class="footnote-item"><p>EleutherAI Blog. <em>Multiple Choice Normalization in LM Evaluation</em>. https://blog.eleuther.ai/multiple-choice-normalization/. <a href="#fnref3" class="footnote-backref">↩︎</a> <a href="#fnref3:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn4" class="footnote-item"><p>HuggingFace. (2024-06-26). <em>Open-LLM performances are plateauing, let's make the leaderboard steep again (Open LLM Leaderboard v2 blog)</em>. https://huggingface.co/spaces/open-llm-leaderboard/blog. 2025-03-13 retirement: https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135. <a href="#fnref4" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 <section id="03-frameworks">
 <h2>为什么要四个框架</h2>
 <p>读过第 2 章会有一个直觉问题：lm-eval-harness 已经&quot;什么 task 都收&quot;，为何还需要 OLMES / lighteval / HELM v2 / DCLM？答案在四件事上分别裂开：</p>
-<p>| 维度 | lm-eval-harness | OLMES | lighteval | HELM v2 | DCLM |
-|---|---|---|---|---|---|
-| 主线问题 | 工具齐全 | 标准化 | 易扩展 + 多 backend | 评分卡 | 数据评估 |
-| Execution model | 单 process / vLLM | 单 process（基于 harness） | accelerate + nanotron / vLLM | distributed runner | OpenLM training-time eval |
-| Prompt 模板 | 开放 | 强制 canonical setup | inherit OLMES + 自定 | scenario-specific adapter | 固定 53-task |
-| Metric 抽象 | task 自定 | task 固定 | task 兼容 harness | 7 维 metric matrix | 53-task macro avg |
-| Scale-out | DataParallel | 同 harness | accelerate FSDP / DP | manual sharding | OpenLM cluster |
-| 适用场景 | 单 ckpt eval | reproducible release | HF 训练栈集成 | holistic 报告 | data recipe ablation |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>lm-eval-harness</th>
+<th>OLMES</th>
+<th>lighteval</th>
+<th>HELM v2</th>
+<th>DCLM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主线问题</td>
+<td>工具齐全</td>
+<td>标准化</td>
+<td>易扩展 + 多 backend</td>
+<td>评分卡</td>
+<td>数据评估</td>
+</tr>
+<tr>
+<td>Execution model</td>
+<td>单 process / vLLM</td>
+<td>单 process（基于 harness）</td>
+<td>accelerate + nanotron / vLLM</td>
+<td>distributed runner</td>
+<td>OpenLM training-time eval</td>
+</tr>
+<tr>
+<td>Prompt 模板</td>
+<td>开放</td>
+<td>强制 canonical setup</td>
+<td>inherit OLMES + 自定</td>
+<td>scenario-specific adapter</td>
+<td>固定 53-task</td>
+</tr>
+<tr>
+<td>Metric 抽象</td>
+<td>task 自定</td>
+<td>task 固定</td>
+<td>task 兼容 harness</td>
+<td>7 维 metric matrix</td>
+<td>53-task macro avg</td>
+</tr>
+<tr>
+<td>Scale-out</td>
+<td>DataParallel</td>
+<td>同 harness</td>
+<td>accelerate FSDP / DP</td>
+<td>manual sharding</td>
+<td>OpenLM cluster</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>单 ckpt eval</td>
+<td>reproducible release</td>
+<td>HF 训练栈集成</td>
+<td>holistic 报告</td>
+<td>data recipe ablation</td>
+</tr>
+</tbody>
+</table>
 <p>下面拆开看。</p>
 <h2>OLMES：在 harness 之上加锁</h2>
-<p>OLMES（Open Language Model Evaluation System，Gu et al. 2024 / NAACL 2025[^gu2024olmes]）的工程定位是&quot;harness compatible + 强制 canonical setup&quot;。它的 <code>allenai/olmes</code> 包不重写 evaluation engine——内部直接依赖 lm-eval-harness，但替换 task YAML 与配置：每个 task 的 prompt template / few-shot example / normalization choice / stop sequence 都被钉死。</p>
+<p>OLMES（Open Language Model Evaluation System，Gu et al. 2024 / NAACL 2025<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>）的工程定位是&quot;harness compatible + 强制 canonical setup&quot;。它的 <code>allenai/olmes</code> 包不重写 evaluation engine——内部直接依赖 lm-eval-harness，但替换 task YAML 与配置：每个 task 的 prompt template / few-shot example / normalization choice / stop sequence 都被钉死。</p>
 <p>跑一次：</p>
 <pre><code class="language-bash">pip install ai2-olmes
 olmes \
@@ -663,7 +822,7 @@ olmes \
   --num-shots 5 \
   --gpus 8
 </code></pre>
-<p><code>task::olmes</code> 的 <code>::olmes</code> 后缀是 OLMES task suite 命名空间；它会到 <code>olmes/tasks/&lt;task&gt;_olmes.yaml</code> 找配置，覆盖 harness 同名 task 的 prompt template。AI2 在 OLMo 3 release 时同时打包 <strong>OlmoBaseEval</strong>——43 个 benchmark，按 &quot;Base Easy&quot;（小规模 pretraining run proxy）/ &quot;Base Main&quot;（full-scale run）分层，与 harness 的 task 完全独立维护[^olmo3-blog]。</p>
+<p><code>task::olmes</code> 的 <code>::olmes</code> 后缀是 OLMES task suite 命名空间；它会到 <code>olmes/tasks/&lt;task&gt;_olmes.yaml</code> 找配置，覆盖 harness 同名 task 的 prompt template。AI2 在 OLMo 3 release 时同时打包 <strong>OlmoBaseEval</strong>——43 个 benchmark，按 &quot;Base Easy&quot;（小规模 pretraining run proxy）/ &quot;Base Main&quot;（full-scale run）分层，与 harness 的 task 完全独立维护<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>。</p>
 <p>OLMES 的核心工程贡献是&quot;instance-level logging&quot;：每条样本写一行到 <code>predictions.jsonl</code>：</p>
 <pre><code class="language-json">{&quot;task&quot;: &quot;arc_challenge::olmes&quot;, &quot;instance_id&quot;: &quot;Mercury_7175875&quot;,
  &quot;ctx&quot;: &quot;Question: ...\nA. ...\nB. ...\nAnswer:&quot;,
@@ -673,7 +832,7 @@ olmes \
  &quot;metadata&quot;: {&quot;few_shot_seed_fixed&quot;: true, &quot;norm&quot;: &quot;char_length&quot;, &quot;version&quot;: &quot;olmes_v1&quot;}}
 </code></pre>
 <p>可直接灌 Google Sheets / W&amp;B / S3。这是 lm-eval-harness <code>--log_samples</code> 的&quot;产品化&quot;版——不只是 jsonl 落盘，还做了 audit-friendly 的 schema。</p>
-<p>OLMES 的代价：与 AI2 的 OLMo training workflow 绑定越来越深；社区中立性下降——OlmoBaseEval 43 个 benchmark 是 AI2 偏好的能力组合，他人用就要接受这套口味[^olmo3-blog]。<code>lm-evaluation-harness</code> 在 issue #2002 跟踪逐步吸收 OLMES 建议，但完整 backport 尚未完成；目前 dual-report（OLMES + harness default）是 OLMo / Llama 系列复现的最佳实践。</p>
+<p>OLMES 的代价：与 AI2 的 OLMo training workflow 绑定越来越深；社区中立性下降——OlmoBaseEval 43 个 benchmark 是 AI2 偏好的能力组合，他人用就要接受这套口味<sup class="footnote-ref"><a href="#fn2" id="fnref2:1">[2:1]</a></sup>。<code>lm-evaluation-harness</code> 在 issue #2002 跟踪逐步吸收 OLMES 建议，但完整 backport 尚未完成；目前 dual-report（OLMES + harness default）是 OLMo / Llama 系列复现的最佳实践。</p>
 <h2>lighteval：HF 训练栈的原生 eval</h2>
 <p>lighteval（<code>huggingface/lighteval</code>）是 HuggingFace 团队 2024 年起维护的轻量评测框架，明确定位&quot;HF 训练栈（accelerate / nanotron / TRL）的原生 eval&quot;。设计上的差异点：</p>
 <pre><code class="language-bash">lighteval accelerate \
@@ -691,9 +850,9 @@ olmes \
 <li><strong><code>endpoint</code></strong>: 任意 OpenAI-compatible HTTP endpoint。</li>
 </ul>
 <p>lighteval 的 task 系统兼容 lm-eval-harness（<code>extended/lighteval_tasks.py</code> 里 import harness task 注册器），并支持 OLMES task 包做 drop-in 替换。它的&quot;杀手特性&quot;是 <strong>in-training eval</strong>：训练 loop 跑到指定 step 时直接调 lighteval 的 evaluator，无需把 ckpt 写 HF safetensors 再 load——这对 trillion-token pretrain 是关键省时点。</p>
-<p>工程权衡：lighteval 的 task 库不如 harness 全（约 200 vs 600+ task），且 in-training eval 仍是 generative，跑一遍 ~30 min（与第 1 章 in-training-probing 的 ~3 min 是数量级差距[^liu2026probing]）。</p>
+<p>工程权衡：lighteval 的 task 库不如 harness 全（约 200 vs 600+ task），且 in-training eval 仍是 generative，跑一遍 ~30 min（与第 1 章 in-training-probing 的 ~3 min 是数量级差距<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup>）。</p>
 <h2>HELM v2：scenarios + adapter 解耦</h2>
-<p>HELM v2（HELM Capabilities，CRFM 2025-03 release）走完全不同路线[^crfm2025helm-capabilities]。核心抽象是 <code>scenarios</code>（&quot;什么任务&quot;）× <code>adapters</code>（&quot;如何把任务翻译成 LLM 调用&quot;）× <code>metrics</code>（&quot;评估什么 dimension&quot;）三轴解耦。一个 run spec：</p>
+<p>HELM v2（HELM Capabilities，CRFM 2025-03 release）走完全不同路线<sup class="footnote-ref"><a href="#fn4" id="fnref4">[4]</a></sup>。核心抽象是 <code>scenarios</code>（&quot;什么任务&quot;）× <code>adapters</code>（&quot;如何把任务翻译成 LLM 调用&quot;）× <code>metrics</code>（&quot;评估什么 dimension&quot;）三轴解耦。一个 run spec：</p>
 <pre><code class="language-bash">helm-run \
   --conf-paths run_specs.conf \
   --suite v2 \
@@ -714,7 +873,7 @@ helm-server --suite v2  # 启动本地 leaderboard 网页
 ]
 </code></pre>
 <p>每个 entry 是 scenario 的可参数化引用；HELM runner 把它 expand 成 (scenario instance, adapter, metric) 三元组，分批跑。Adapter 决定 prompt format / 是否 CoT / few-shot 数；metric 决定 accuracy / robustness / calibration / efficiency / fairness / bias / toxicity 七维要哪几个。</p>
-<p>HELM v2 把 v1 的 mean-win-rate aggregation 换成 mean-score——后者与 model 集无关，新模型加入不会扰动旧模型 rank[^crfm2025helm-capabilities]。但 v2 同时把 scenario 收缩到 5 个（MMLU-Pro / GPQA / IFEval / WildBench / Omni-MATH），coverage 大幅缩小，与原&quot;holistic&quot;愿景背离——这是 HELM 自身 critique 的核心点。</p>
+<p>HELM v2 把 v1 的 mean-win-rate aggregation 换成 mean-score——后者与 model 集无关，新模型加入不会扰动旧模型 rank<sup class="footnote-ref"><a href="#fn4" id="fnref4:1">[4:1]</a></sup>。但 v2 同时把 scenario 收缩到 5 个（MMLU-Pro / GPQA / IFEval / WildBench / Omni-MATH），coverage 大幅缩小，与原&quot;holistic&quot;愿景背离——这是 HELM 自身 critique 的核心点。</p>
 <p>HELM v2 的 multi-LLM-judge（GPT-4o + Llama-3.1-405B + Claude-3.5-Sonnet）实现在 <code>helm/benchmark/annotation/</code>：</p>
 <pre><code class="language-python"># helm/benchmark/annotation/wildbench_annotator.py 简化
 def annotate(self, request_state):
@@ -724,9 +883,9 @@ def annotate(self, request_state):
     return {&quot;score&quot;: float(np.mean(scores)), &quot;raw_judges&quot;: judge_responses}
 </code></pre>
 <p>3 judge 取均值在 reproducibility 上引入新噪声：每次 judge call 不严格一致，每 task 数字的 within-run stderr ≥ 0.5 pp。WildBench / Omni-MATH 这类 judge-based scenario 因此<strong>永远做不到 lm-eval-harness loglikelihood task 那种&quot;两次跑数字完全一致&quot;</strong>——HELM 自己也承认这点。</p>
-<p>2026-06-01 HELM 进入 maintenance mode[^helm-github]——CRFM 不再为它加新功能。HELM Classic（v1，42 scenarios × 7 metrics）仍是想&quot;一份报告覆盖 7 维&quot;项目的唯一选择，但社区 momentum 已转向 lm-eval-harness / OLMES / lighteval。</p>
+<p>2026-06-01 HELM 进入 maintenance mode<sup class="footnote-ref"><a href="#fn5" id="fnref5">[5]</a></sup>——CRFM 不再为它加新功能。HELM Classic（v1，42 scenarios × 7 metrics）仍是想&quot;一份报告覆盖 7 维&quot;项目的唯一选择，但社区 momentum 已转向 lm-eval-harness / OLMES / lighteval。</p>
 <h2>DCLM：把 eval 绑数据评估</h2>
-<p>DCLM（DataComp-LM, Li, Fang et al. 2024 NeurIPS[^li2024dclm]）的工程定位与上面三者正交：它不是&quot;通用 eval framework&quot;，而是&quot;把 eval 当作 data recipe 验证的固定 dependent variable&quot;。范式：</p>
+<p>DCLM（DataComp-LM, Li, Fang et al. 2024 NeurIPS<sup class="footnote-ref"><a href="#fn6" id="fnref6">[6]</a></sup>）的工程定位与上面三者正交：它不是&quot;通用 eval framework&quot;，而是&quot;把 eval 当作 data recipe 验证的固定 dependent variable&quot;。范式：</p>
 <pre><code>Fix:  OpenLM transformer + 训练配方 + 53-task evaluation
 Vary: 数据 recipe（filter / dedupe / mix）
 </code></pre>
@@ -749,7 +908,7 @@ python -m eval.eval_openlm_ckpt \
   --model-dir ./checkpoints/openlm-7b-2x \
   --output-file ./results.jsonl
 </code></pre>
-<p><code>scale: 7b_2x</code> 是 DCLM 三档 scale 的中等档（412M / 1B / 7B；后缀 <code>_1x</code> / <code>_2x</code> 表示 Chinchilla / 2× Chinchilla token budget）。每档绑死 token 数：7B-2x 是 140B token。这&quot;固定模型 + 固定 token + 固定 eval&quot;的设计让 data recipe 成为唯一独立变量[^li2024dclm]。</p>
+<p><code>scale: 7b_2x</code> 是 DCLM 三档 scale 的中等档（412M / 1B / 7B；后缀 <code>_1x</code> / <code>_2x</code> 表示 Chinchilla / 2× Chinchilla token budget）。每档绑死 token 数：7B-2x 是 140B token。这&quot;固定模型 + 固定 token + 固定 eval&quot;的设计让 data recipe 成为唯一独立变量<sup class="footnote-ref"><a href="#fn6" id="fnref6:1">[6:1]</a></sup>。</p>
 <p>53-task eval YAML（<code>dclm/eval/heavy.yaml</code>）：</p>
 <pre><code class="language-yaml">tasks:
   - mmlu_zero_shot
@@ -777,38 +936,102 @@ core_subset:
   - jeopardy
   - ...
 </code></pre>
-<p>&quot;Core&quot; 22 task 子集是 high-signal 子集，用 centered macro-average 作 top-level metric。DCLM-Baseline（fastText quality classifier 过滤后的 corpus）在 7B-2x 上 MMLU 5-shot 64%，把同期 Falcon-7B 的 26.2% 直接拉开 38 pp[^li2024dclm]——这是 data engineering 杠杆的 strong evidence。</p>
+<p>&quot;Core&quot; 22 task 子集是 high-signal 子集，用 centered macro-average 作 top-level metric。DCLM-Baseline（fastText quality classifier 过滤后的 corpus）在 7B-2x 上 MMLU 5-shot 64%，把同期 Falcon-7B 的 26.2% 直接拉开 38 pp<sup class="footnote-ref"><a href="#fn6" id="fnref6:2">[6:2]</a></sup>——这是 data engineering 杠杆的 strong evidence。</p>
 <p>DCLM 的工程坑：</p>
 <ul>
 <li><strong>OpenLM 与 HF 不通</strong>：训完的 ckpt 是 OpenLM 格式，要转 HF 才能进 lm-eval-harness。<code>dclm/scripts/convert_to_hf.py</code> 做转换，但 RoPE / SwiGLU 实现的细微差异偶有 0.5 pp 抖动。</li>
-<li><strong>53-task BHI 视角已部分 saturate</strong>：BHI paper（2026-02）指出 DCLM 53-task 中部分 capability discrimination 接近 0[^zhu2026bhi]——HellaSwag / PIQA 之类对 7B 模型分辨度不够；data recipe ablation 的信号被稀释。</li>
-<li><strong>未覆盖 mid-train / SFT</strong>：DCLM 纯 pretrain centric；现代 pipeline 含 mid-training（continued pretrain on 高质量子集）和 SFT，DCLM 无法 isolate 这些阶段。daVinci-LLM (2026-03[^qin2026davinci]) 明示自己是 &quot;next generation&quot;，扩到 L0-L9 data taxonomy 与 mid-training。</li>
+<li><strong>53-task BHI 视角已部分 saturate</strong>：BHI paper（2026-02）指出 DCLM 53-task 中部分 capability discrimination 接近 0<sup class="footnote-ref"><a href="#fn7" id="fnref7">[7]</a></sup>——HellaSwag / PIQA 之类对 7B 模型分辨度不够；data recipe ablation 的信号被稀释。</li>
+<li><strong>未覆盖 mid-train / SFT</strong>：DCLM 纯 pretrain centric；现代 pipeline 含 mid-training（continued pretrain on 高质量子集）和 SFT，DCLM 无法 isolate 这些阶段。daVinci-LLM (2026-03<sup class="footnote-ref"><a href="#fn8" id="fnref8">[8]</a></sup>) 明示自己是 &quot;next generation&quot;，扩到 L0-L9 data taxonomy 与 mid-training。</li>
 </ul>
 <h2>选哪个：一张决策表</h2>
 <p>按&quot;项目阶段 + 主要诉求&quot;选：</p>
-<p>| 场景 | 首选 | 二选 | 理由 |
-|---|---|---|---|
-| Pretrain run 高频中间评测 | lighteval (nanotron in-training) + in-training-probing | OLMES Base Easy | wall-clock 与训练栈集成 |
-| Pretrain run milestone 评测 | OLMES Base Main | lm-eval-harness + leaderboard task | canonical setup 可发表 |
-| Pretrain release / paper | OLMES + lm-eval-harness dual report | + HELM Classic 7-metric matrix | 用 OLMES 的标准化 + 暴露 setup sensitivity |
-| Data recipe ablation | DCLM 53-task | daVinci-LLM L0-L9 框架 | 范式锁住 model + eval，data 为独立变量 |
-| Holistic 评分卡（7 维） | HELM Classic | – | 仅此一家做 calibration/robustness/fairness/efficiency 一体化 |
-| Code 评估 | bigcode-evaluation-harness | EvalPlus | lm-eval-harness HumanEval 是最弱实现 |
-| Frontier reasoning 评估 | 自家 in-house | lm-eval-harness leaderboard 任务集 | 标准框架无 thinking-token 原生支持 |
-| HF training 栈集成 | lighteval accelerate | lm-eval-harness | accelerate distributed + nanotron 桥接 |</p>
-<p>实操建议：<strong>OLMES + lm-eval-harness 双跑</strong> 是当前 release-quality eval 的最稳路径。两个数字对照能暴露 setup sensitivity（OLMES canonical vs harness default），任一框架内部 bug 都能被另一个抓到。HF Open LLM Leaderboard 已 archive[^hf-leaderboard-retirement]——不再有&quot;上 leaderboard 就一切搞定&quot;的捷径，每个项目都要自建 dual-report 流程。</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>首选</th>
+<th>二选</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pretrain run 高频中间评测</td>
+<td>lighteval (nanotron in-training) + in-training-probing</td>
+<td>OLMES Base Easy</td>
+<td>wall-clock 与训练栈集成</td>
+</tr>
+<tr>
+<td>Pretrain run milestone 评测</td>
+<td>OLMES Base Main</td>
+<td>lm-eval-harness + leaderboard task</td>
+<td>canonical setup 可发表</td>
+</tr>
+<tr>
+<td>Pretrain release / paper</td>
+<td>OLMES + lm-eval-harness dual report</td>
+<td>+ HELM Classic 7-metric matrix</td>
+<td>用 OLMES 的标准化 + 暴露 setup sensitivity</td>
+</tr>
+<tr>
+<td>Data recipe ablation</td>
+<td>DCLM 53-task</td>
+<td>daVinci-LLM L0-L9 框架</td>
+<td>范式锁住 model + eval，data 为独立变量</td>
+</tr>
+<tr>
+<td>Holistic 评分卡（7 维）</td>
+<td>HELM Classic</td>
+<td>–</td>
+<td>仅此一家做 calibration/robustness/fairness/efficiency 一体化</td>
+</tr>
+<tr>
+<td>Code 评估</td>
+<td>bigcode-evaluation-harness</td>
+<td>EvalPlus</td>
+<td>lm-eval-harness HumanEval 是最弱实现</td>
+</tr>
+<tr>
+<td>Frontier reasoning 评估</td>
+<td>自家 in-house</td>
+<td>lm-eval-harness leaderboard 任务集</td>
+<td>标准框架无 thinking-token 原生支持</td>
+</tr>
+<tr>
+<td>HF training 栈集成</td>
+<td>lighteval accelerate</td>
+<td>lm-eval-harness</td>
+<td>accelerate distributed + nanotron 桥接</td>
+</tr>
+</tbody>
+</table>
+<p>实操建议：<strong>OLMES + lm-eval-harness 双跑</strong> 是当前 release-quality eval 的最稳路径。两个数字对照能暴露 setup sensitivity（OLMES canonical vs harness default），任一框架内部 bug 都能被另一个抓到。HF Open LLM Leaderboard 已 archive<sup class="footnote-ref"><a href="#fn9" id="fnref9">[9]</a></sup>——不再有&quot;上 leaderboard 就一切搞定&quot;的捷径，每个项目都要自建 dual-report 流程。</p>
 <h2>后续章节</h2>
 <p>第 4 章起按 benchmark 类别（经典 / reasoning / live / 长上下文+多模态+agent）给逐 benchmark 的命令、prompt、log 片段。所有命令默认 OLMES 或 lm-eval-harness 任选其一，标注差异处。第 5 章专门处理 reasoning era 的 thinking-token 工程问题——上述四个框架都还没原生支持。</p>
 <h2>引用</h2>
-<p>[^gu2024olmes]: Gu, Y., Tafjord, O., Kuehl, B., Haddad, D., Dodge, J., Hajishirzi, H. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (Findings of NAACL 2025).</p>
-<p>[^olmo3-blog]: Allen Institute for AI. (2025-11-20). <em>Olmo 3: Charting a path through the model flow to lead open-source AI</em>. https://allenai.org/blog/olmo3.</p>
-<p>[^crfm2025helm-capabilities]: CRFM. (2025-03-20). <em>HELM Capabilities</em>. https://crfm.stanford.edu/2025/03/20/helm-capabilities.html.</p>
-<p>[^helm-github]: Stanford CRFM. <em>HELM enters maintenance mode 2026-06-01</em>. https://github.com/stanford-crfm/helm.</p>
-<p>[^li2024dclm]: Li, J., Fang, A., Smyrnis, G. et al. (2024). <em>DataComp-LM: In search of the next generation of training sets for language models</em>. NeurIPS 2024 Datasets and Benchmarks. arXiv:2406.11794.</p>
-<p>[^zhu2026bhi]: Zhu, L., Hua, H., Miao, L., Zhao, B. (2026-02). <em>Benchmark Health Index: A Systematic Framework for Benchmarking the Benchmarks of LLMs</em>. arXiv:2602.11674.</p>
-<p>[^qin2026davinci]: Qin, Y., Liu, Y., Mi, T., Xie, M., Huang, Z. et al. (2026-03). <em>daVinci-LLM: Towards the Science of Pretraining</em>. arXiv:2603.27164.</p>
-<p>[^liu2026probing]: Liu, Z., Lun, T., Wen, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025.</p>
-<p>[^hf-leaderboard-retirement]: clefourrier @ HuggingFace. (2025-03-13). <em>It's been a wild ride, folks :) (end of the Open LLM Leaderboard)</em>. https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135.</p>
+<hr class="footnotes-sep" />
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Gu, Y., Tafjord, O., Kuehl, B., Haddad, D., Dodge, J., Hajishirzi, H. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (Findings of NAACL 2025). <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>Allen Institute for AI. (2025-11-20). <em>Olmo 3: Charting a path through the model flow to lead open-source AI</em>. https://allenai.org/blog/olmo3. <a href="#fnref2" class="footnote-backref">↩︎</a> <a href="#fnref2:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn3" class="footnote-item"><p>Liu, Z., Lun, T., Wen, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025. <a href="#fnref3" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn4" class="footnote-item"><p>CRFM. (2025-03-20). <em>HELM Capabilities</em>. https://crfm.stanford.edu/2025/03/20/helm-capabilities.html. <a href="#fnref4" class="footnote-backref">↩︎</a> <a href="#fnref4:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn5" class="footnote-item"><p>Stanford CRFM. <em>HELM enters maintenance mode 2026-06-01</em>. https://github.com/stanford-crfm/helm. <a href="#fnref5" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn6" class="footnote-item"><p>Li, J., Fang, A., Smyrnis, G. et al. (2024). <em>DataComp-LM: In search of the next generation of training sets for language models</em>. NeurIPS 2024 Datasets and Benchmarks. arXiv:2406.11794. <a href="#fnref6" class="footnote-backref">↩︎</a> <a href="#fnref6:1" class="footnote-backref">↩︎</a> <a href="#fnref6:2" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn7" class="footnote-item"><p>Zhu, L., Hua, H., Miao, L., Zhao, B. (2026-02). <em>Benchmark Health Index: A Systematic Framework for Benchmarking the Benchmarks of LLMs</em>. arXiv:2602.11674. <a href="#fnref7" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn8" class="footnote-item"><p>Qin, Y., Liu, Y., Mi, T., Xie, M., Huang, Z. et al. (2026-03). <em>daVinci-LLM: Towards the Science of Pretraining</em>. arXiv:2603.27164. <a href="#fnref8" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn9" class="footnote-item"><p>clefourrier @ HuggingFace. (2025-03-13). <em>It's been a wild ride, folks :) (end of the Open LLM Leaderboard)</em>. https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard/discussions/1135. <a href="#fnref9" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 <section id="04-classic-ops">
@@ -841,8 +1064,8 @@ core_subset:
 <h3>坑 1：<code>acc</code> 是 raw、<code>acc_norm</code> 是 byte-length normalize 的——MMLU 没有 <code>acc_norm</code></h3>
 <p>新人最容易混淆 MMLU 与 HellaSwag/ARC 的输出字段。MMLU 的官方协议是把 <code>A</code> / <code>B</code> / <code>C</code> / <code>D</code> 四个<strong>字母</strong>当 continuation 算 logprob，长度都是 1 token（多数 BPE tokenizer 下），不需要长度归一化，于是 harness 不报 <code>acc_norm</code>。HellaSwag 候选续写长度差几十 token，必须 byte-length 归一化才能比，于是默认上 <code>acc_norm</code>。两个字段拼错就拼出一个永远不收敛的 leaderboard——别问怎么知道的。</p>
 <h3>坑 2：<code>normalize_logprobs</code> 与&quot;答案是文本&quot;两种协议数字差 2–5 pp</h3>
-<p>harness 默认对 MMLU 用 4 个<strong>字母</strong> continuation；OLMES MMLU 用的是 <strong>answer text</strong>（&quot;A. The polynomial is...&quot;）作为 continuation，再 byte-length 归一化。Gu et al. 2024 OLMES paper[^gu2024olmes] 测出同一个 7B model 这两套协议差 3.1 pp，落在 60.4% 与 63.5% 之间。报数前先看协议——尤其要和 paper 对账时，必须明确对面跑的是哪套。</p>
-<p>EleutherAI 自家 blog 的 MCQ normalization 帖（<code>blog.eleuther.ai/multiple-choice-normalization/</code>[^eleuther-mcq-norm]）实测 byte / char / unconditioned / acc-norm 四种归一化在 MMLU 上数字差最大 14 pp，看 paper 数字前 grep 一下作者用了哪种。</p>
+<p>harness 默认对 MMLU 用 4 个<strong>字母</strong> continuation；OLMES MMLU 用的是 <strong>answer text</strong>（&quot;A. The polynomial is...&quot;）作为 continuation，再 byte-length 归一化。Gu et al. 2024 OLMES paper<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup> 测出同一个 7B model 这两套协议差 3.1 pp，落在 60.4% 与 63.5% 之间。报数前先看协议——尤其要和 paper 对账时，必须明确对面跑的是哪套。</p>
+<p>EleutherAI 自家 blog 的 MCQ normalization 帖（<code>blog.eleuther.ai/multiple-choice-normalization/</code><sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>）实测 byte / char / unconditioned / acc-norm 四种归一化在 MMLU 上数字差最大 14 pp，看 paper 数字前 grep 一下作者用了哪种。</p>
 <h3>坑 3：5-shot demonstrations 的 dev-set 顺序</h3>
 <p>MMLU 的 5-shot 取自每个 subject 的 dev split（每 subject 5 题，正好作 5-shot），harness 的 <code>fewshot_split: dev</code> 与 <code>num_fewshot: 5</code> 保证 deterministic。但若改成 <code>--num_fewshot 25</code>，dev 不够会从 train split 抽——而原始 Hendrycks repo 没有 train split，harness 会 fallback 到 validation，subject 间顺序差异导致 3–5 pp 浮动。复现 paper 数字时永远用 <code>--num_fewshot 5</code>。</p>
 <h3>与 paper 数字对账 checklist</h3>
@@ -851,7 +1074,7 @@ core_subset:
 <li>归一化：<code>acc</code> vs <code>acc_norm</code> vs OLMES <code>acc_per_char</code> — 差 1–3 pp</li>
 <li>few-shot：5-shot dev / 0-shot — 差 4–8 pp（小模型大）</li>
 <li>chat template：是否 <code>--apply_chat_template</code>（base 模型必须 <code>false</code>）— 差 5–20 pp</li>
-<li>MMLU-Redux：用了官方的 14042 题还是 5700 题清洗版？看 Gema et al. 2024[^gema2024mmluredux]</li>
+<li>MMLU-Redux：用了官方的 14042 题还是 5700 题清洗版？看 Gema et al. 2024<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup></li>
 <li>subdomain 加权：lm-eval-harness 默认对 57 subject 取算术平均，部分 paper 用题数加权——总分差 0.3–0.8 pp。这种差异不在乎，但若想精确复现 paper 数字需对齐。</li>
 </ul>
 <p>Llama-3.1-8B base 我们这套配置实测 <code>mmlu acc=0.6810</code>，与 Meta model card 报的 0.68 一致；若你跑出 0.65 以下，先看 chat template 开关。</p>
@@ -895,7 +1118,7 @@ core_subset:
     return ctx
 </code></pre>
 <p><code>lm_eval/tasks/hellaswag/utils.py:preprocess</code> 还会做 <code>re.sub</code> 把 <code>[header]</code> / <code>[step]</code> 之类的 wikiHow tag 清掉。如果你看 paper 数字与 harness 数字差 1–2 pp，大概率是 paper 不带 <code>activity_label</code> 或不去 wikiHow tag——HellaSwag 原 paper 把这些视为 input 的一部分，社区分歧延续至今。</p>
-<p>第二个常见 surprise：HellaSwag validation 已被广泛公开 ≥6 年，且 36% 的题目本身含错（Surge AI 2024 audit[^surge2024hellabad]），更严重的是 Chizhov et al. 2025 的 GoldenSwag 工作[^chizhov2025goldenswag] 显示 ≥65% 的模型预测在删除 question 或用 Lorem ipsum 替换后<strong>不变</strong>——也就是说大半部分分数靠&quot;看答案选项&quot;就能拿。把 HellaSwag 分数作为 saturation 后的 sanity check 还行，作为 ranking 信号 noise 已经压住 signal。</p>
+<p>第二个常见 surprise：HellaSwag validation 已被广泛公开 ≥6 年，且 36% 的题目本身含错（Surge AI 2024 audit<sup class="footnote-ref"><a href="#fn4" id="fnref4">[4]</a></sup>），更严重的是 Chizhov et al. 2025 的 GoldenSwag 工作<sup class="footnote-ref"><a href="#fn5" id="fnref5">[5]</a></sup> 显示 ≥65% 的模型预测在删除 question 或用 Lorem ipsum 替换后<strong>不变</strong>——也就是说大半部分分数靠&quot;看答案选项&quot;就能拿。把 HellaSwag 分数作为 saturation 后的 sanity check 还行，作为 ranking 信号 noise 已经压住 signal。</p>
 <h2>WinoGrande：paired log-likelihood 的 binary MCQ</h2>
 <pre><code class="language-bash">lm_eval --model vllm \
   --model_args pretrained=meta-llama/Llama-3.1-8B,tensor_parallel_size=8 \
@@ -952,7 +1175,7 @@ core_subset:
 <h3>与 paper 数字对账</h3>
 <ul>
 <li>Llama-3.1-8B-base 这套配置 strict 50.7% / flexible 53.8%，Meta model card 报 8-shot CoT <code>gsm8k_cot=56.3%</code>——差距来自 Meta 用了 maj@8 投票。pass@1 应对 pass@1 比。</li>
-<li>GSM8K test set 已确认存在 contamination 与 saturation（Mirzadeh et al. 2024 GSM-Symbolic[^mirzadeh2024gsm-symbolic] 把 GSM8K 的&quot;扰动版&quot;测出 65% 性能塌方）。看到 95%+ 的数字别太兴奋，跑一遍 GSM-Symbolic 或 GSM1k[^zhang2024gsm1k]。</li>
+<li>GSM8K test set 已确认存在 contamination 与 saturation（Mirzadeh et al. 2024 GSM-Symbolic<sup class="footnote-ref"><a href="#fn6" id="fnref6">[6]</a></sup> 把 GSM8K 的&quot;扰动版&quot;测出 65% 性能塌方）。看到 95%+ 的数字别太兴奋，跑一遍 GSM-Symbolic 或 GSM1k<sup class="footnote-ref"><a href="#fn7" id="fnref7">[7]</a></sup>。</li>
 </ul>
 <h2>HumanEval：sandbox 与 pass@k 的不可信估计</h2>
 <pre><code class="language-bash">HF_ALLOW_CODE_EVAL=1 lm_eval \
@@ -978,7 +1201,7 @@ core_subset:
 </code></pre>
 <p>n 是采样数、c 是通过数。harness 默认 <code>n_samples=10</code> 跑 <code>pass@1, pass@10</code>，pass@10 在 n=10 时方差大。要 pass@10 数字稳，n 至少 100。这是 HumanEval saturation 后 paper 数字普遍只报 pass@1 的原因——pass@10 太贵且 n=10 数字 noise 太大。</p>
 <h3>坑 3：HumanEval 已 saturated，要看 HumanEval+</h3>
-<p>GPT-4-class 模型在原始 164 题上常 &gt;95% pass@1，没 headroom。Liu et al. 2023 EvalPlus[^liu-2023-evalplus] 把每题 unit test 数从 ~7 扩到 ~560（80× 增强），frontier 模型 pass@1 掉 19–29 pp。lm-eval-harness <code>humaneval_plus</code> task 直接用 EvalPlus 的扩展测试集，建议主报 <code>humaneval_plus pass@1</code> 而非原版。</p>
+<p>GPT-4-class 模型在原始 164 题上常 &gt;95% pass@1，没 headroom。Liu et al. 2023 EvalPlus<sup class="footnote-ref"><a href="#fn8" id="fnref8">[8]</a></sup> 把每题 unit test 数从 ~7 扩到 ~560（80× 增强），frontier 模型 pass@1 掉 19–29 pp。lm-eval-harness <code>humaneval_plus</code> task 直接用 EvalPlus 的扩展测试集，建议主报 <code>humaneval_plus pass@1</code> 而非原版。</p>
 <h2>BBH：CoT 触发与 23 个子任务的均值陷阱</h2>
 <pre><code class="language-bash">lm_eval --model vllm \
   --model_args pretrained=meta-llama/Llama-3.1-8B,tensor_parallel_size=8 \
@@ -999,13 +1222,13 @@ core_subset:
 </code></pre>
 <p>Task 文件夹：<code>lm_eval/tasks/bbh/</code>，含 <code>cot_fewshot/</code> 和 <code>zeroshot/</code> 两个子任务包。CoT prompts 在 <code>cot-prompts/</code> 子目录下，每个 task 一个 <code>.txt</code> 文件，与原始 <code>suzgunmirac/BIG-Bench-Hard</code> repo 同步。</p>
 <h3>坑 1：CoT vs answer-only 差 10–20 pp 是 BBH 标志</h3>
-<p>BBH 设计本身是 &quot;CoT 的实证舞台&quot;——23 task 平均，CoT 比 answer-only 高 10–20 pp。harness 的 <code>bbh_zeroshot</code> 是 answer-only 协议，<code>bbh_cot_fewshot</code> 是 3-shot CoT。报 BBH 数字不指明协议基本无意义。Suzgun et al. 2023[^suzgun2023bbh] 报 PaLM-540B CoT 65.2% vs answer-only 50.4%，差 14.8 pp。</p>
+<p>BBH 设计本身是 &quot;CoT 的实证舞台&quot;——23 task 平均，CoT 比 answer-only 高 10–20 pp。harness 的 <code>bbh_zeroshot</code> 是 answer-only 协议，<code>bbh_cot_fewshot</code> 是 3-shot CoT。报 BBH 数字不指明协议基本无意义。Suzgun et al. 2023<sup class="footnote-ref"><a href="#fn9" id="fnref9">[9]</a></sup> 报 PaLM-540B CoT 65.2% vs answer-only 50.4%，差 14.8 pp。</p>
 <h3>坑 2：23 task 算术平均不加权，但 task size 不等</h3>
 <p>BBH 23 task 大部分 250 例，但有几个明显少：<code>boolean_expressions</code> 250、<code>web_of_lies</code> 250、<code>tracking_shuffled_objects_*</code> 三 task 各 250、<code>disambiguation_qa</code> 250…实际几乎都是 250，但 sample size 在子文件夹里就有差异。harness 默认算术平均（不按题数加权），与 paper 一致——但这意味着一个 <code>dyck_languages</code> 跌 20 pp 与 <code>web_of_lies</code> 跌 20 pp 同等重要。Debug 时一定要 per-subtask 看，别只看总分。</p>
 <h3>坑 3：CoT prompt 内嵌的 chain-of-thought 模板必须保留 <code>\nA: Let's think step by step.</code></h3>
-<p>harness 的 <code>cot-prompts/*.txt</code> 来自原始 BBH repo。如果你自己改 prompt 想&quot;清理&quot;那行 <code>Let's think step by step.</code>，CoT 就不会触发，分数掉到 answer-only baseline。Madaan &amp; Yazdanbakhsh 2023 &quot;Invalid Logic, Equivalent Gains&quot;[^madaan2023invalidcot] 还实测了：把那行换成完全无意义的 <code>Let's xkcd quantum kettle.</code> 居然依然能拉 5+ pp ——但前提是触发了 generation 中的&quot;step-by-step&quot;格式。结论是：prompt 触发了&quot;逐步生成&quot;行为本身有用，不是 CoT 内容真。报 BBH 时永远先确认 prompt 是否真的让模型逐步推理（看 <code>samples_*.jsonl</code> 抽几条人眼检查）。</p>
+<p>harness 的 <code>cot-prompts/*.txt</code> 来自原始 BBH repo。如果你自己改 prompt 想&quot;清理&quot;那行 <code>Let's think step by step.</code>，CoT 就不会触发，分数掉到 answer-only baseline。Madaan &amp; Yazdanbakhsh 2023 &quot;Invalid Logic, Equivalent Gains&quot;<sup class="footnote-ref"><a href="#fn10" id="fnref10">[10]</a></sup> 还实测了：把那行换成完全无意义的 <code>Let's xkcd quantum kettle.</code> 居然依然能拉 5+ pp ——但前提是触发了 generation 中的&quot;step-by-step&quot;格式。结论是：prompt 触发了&quot;逐步生成&quot;行为本身有用，不是 CoT 内容真。报 BBH 时永远先确认 prompt 是否真的让模型逐步推理（看 <code>samples_*.jsonl</code> 抽几条人眼检查）。</p>
 <h3>已知 ground-truth 错误</h3>
-<p>BBH GitHub Issue #14 / #15 报 <code>date_understanding</code>、<code>geometric_shapes</code> 部分 ground-truth 标错，维护方暂未修。复现 paper 数字时这点不影响（大家踩同一个 bug），但你的真实能力数字会被这部分噪声压低 ~0.5–1 pp。Kazemi et al. 2025 BBEH (BIG-Bench Extra Hard)[^bbeh-paper] 已彻底替换。</p>
+<p>BBH GitHub Issue #14 / #15 报 <code>date_understanding</code>、<code>geometric_shapes</code> 部分 ground-truth 标错，维护方暂未修。复现 paper 数字时这点不影响（大家踩同一个 bug），但你的真实能力数字会被这部分噪声压低 ~0.5–1 pp。Kazemi et al. 2025 BBEH (BIG-Bench Extra Hard)<sup class="footnote-ref"><a href="#fn11" id="fnref11">[11]</a></sup> 已彻底替换。</p>
 <h2>MBPP：与 HumanEval 同框，但 test 稀疏</h2>
 <pre><code class="language-bash">HF_ALLOW_CODE_EVAL=1 lm_eval \
   --model vllm \
@@ -1021,7 +1244,7 @@ core_subset:
 </code></pre>
 <p>Task YAML：<code>lm_eval/tasks/mbpp/mbpp.yaml</code>，sanitized 子集是 <code>mbpp_sanitized</code> (427 题)，全集是 <code>mbpp</code> (974 题，含低质量众包项)。论文主流报的是 sanitized；新人常把 974 题数字写 paper 里，对账时 5–10 pp 对不上。</p>
 <h3>坑：MBPP 每题 3 个 test，太稀</h3>
-<p>Liu et al. 2023[^liu-2023-evalplus] 报 MBPP 原版 3 个 test 让 frontier 模型 pass@1 虚高 5–15 pp。MBPP+ (EvalPlus) 把测试扩到 ~100/题，建议主报 <code>mbppplus</code>。</p>
+<p>Liu et al. 2023<sup class="footnote-ref"><a href="#fn8" id="fnref8:1">[8:1]</a></sup> 报 MBPP 原版 3 个 test 让 frontier 模型 pass@1 虚高 5–15 pp。MBPP+ (EvalPlus) 把测试扩到 ~100/题，建议主报 <code>mbppplus</code>。</p>
 <p>Sandbox 注意事项同 HumanEval：Docker 隔离，不要相信 in-process <code>exec()</code>。</p>
 <h2>PIQA：物理常识的 paired log-likelihood</h2>
 <pre><code class="language-bash">lm_eval --model vllm \
@@ -1036,7 +1259,7 @@ core_subset:
 }
 </code></pre>
 <p>Task YAML：<code>lm_eval/tasks/piqa/piqa.yaml</code>，与 HellaSwag 同构（paired LL + acc_norm）。Random = 50%。</p>
-<p>PIQA 是 2026 年场景中&quot;早已 saturated 但仍报&quot;的代表——前沿模型常 88%+ 而人类 95%，差距已主要由噪声构成。Chang et al. 2025 Global PIQA[^chang2025globalpiqa] 揭示英文 PIQA 与跨语言 PIQA 间有 37 pp gap，纯英文 score 不能代表&quot;物理常识&quot;能力。</p>
+<p>PIQA 是 2026 年场景中&quot;早已 saturated 但仍报&quot;的代表——前沿模型常 88%+ 而人类 95%，差距已主要由噪声构成。Chang et al. 2025 Global PIQA<sup class="footnote-ref"><a href="#fn12" id="fnref12">[12]</a></sup> 揭示英文 PIQA 与跨语言 PIQA 间有 37 pp gap，纯英文 score 不能代表&quot;物理常识&quot;能力。</p>
 <h2>ARC-Challenge：25-shot 与小学到中学的科学题</h2>
 <pre><code class="language-bash">lm_eval --model vllm \
   --model_args pretrained=meta-llama/Llama-3.1-8B \
@@ -1065,7 +1288,7 @@ core_subset:
 <p>Task YAML：<code>lm_eval/tasks/triviaqa/default.yaml</code>。Closed-book 模式：只给问题、模型 generate 答案。EM 用 SQuAD-style normalize（小写、去标点、去 articles <code>a/an/the</code>），并对 multiple gold aliases 任一匹配即算对。</p>
 <h3>坑：closed-book 别忘 stop sequence</h3>
 <p>TriviaQA closed-book 模型很容易在答出 &quot;John F. Kennedy&quot; 之后继续 generate 一段无关解释。stop sequence 默认 <code>[&quot;\n&quot;, &quot;.&quot;]</code>，但 5-shot 模板里 demonstration 答案不带句号，模型有时学到&quot;继续生成&quot;风格。看 <code>samples_*.jsonl</code> 抽几条手验 stop 是否正确生效。</p>
-<p>Llama-3.1-405B model card 报 5-shot 91.8%[^llama3-card]，但若你用 <code>--num_fewshot 0</code> 会掉到 60% 左右。closed-book QA 对 shot 敏感。</p>
+<p>Llama-3.1-405B model card 报 5-shot 91.8%<sup class="footnote-ref"><a href="#fn13" id="fnref13">[13]</a></sup>，但若你用 <code>--num_fewshot 0</code> 会掉到 60% 左右。closed-book QA 对 shot 敏感。</p>
 <h2>NaturalQuestions：closed-book EM + 严重 contamination</h2>
 <pre><code class="language-bash">lm_eval --model vllm \
   --model_args pretrained=meta-llama/Llama-3.1-8B \
@@ -1079,36 +1302,115 @@ core_subset:
 </code></pre>
 <p>Task YAML：<code>lm_eval/tasks/nq_open/nq_open.yaml</code>。<code>nq_open</code> 是 closed-book short-answer 版（7830 dev），harness 没有 long-answer task。</p>
 <h3>坑：52% test set 已被 contamination</h3>
-<p>Llama-3 paper Table 15[^llama3-2024paper] 实测 52% NQ 测试题在 LLama-3 预训练 corpus 中——意味着 closed-book LLM 数字几乎全是&quot;记忆 + 一点泛化&quot;。如果你的模型 NQ EM 比 base 还低，先看是不是 chat template 错配或 stop sequence 截太狠，不要怀疑数据集本身。</p>
+<p>Llama-3 paper Table 15<sup class="footnote-ref"><a href="#fn14" id="fnref14">[14]</a></sup> 实测 52% NQ 测试题在 LLama-3 预训练 corpus 中——意味着 closed-book LLM 数字几乎全是&quot;记忆 + 一点泛化&quot;。如果你的模型 NQ EM 比 base 还低，先看是不是 chat template 错配或 stop sequence 截太狠，不要怀疑数据集本身。</p>
 <p>GitHub <code>google-research-datasets/natural-questions</code> 2026-04-19 已 archive，但 HF mirror <code>nq_open</code> 仍可用，数据未变。</p>
 <h2>综合对账：一个 7B base ckpt 上的预期数字</h2>
 <p>复现 Llama-3.1-8B base 的经典 benchmark 数字，用本章配置应得到（all base, 0/5-shot 标注同前）：</p>
-<p>| Benchmark | Shot | Metric | 我们 | Meta card | Δ |
-|---|---|---|---|---|---|
-| MMLU | 5 | acc | 0.6810 | 0.68 | 0.0 |
-| HellaSwag | 0 | acc_norm | 0.7920 | 0.79 | 0.0 |
-| WinoGrande | 5 | acc | 0.7372 | 0.74 | 0.0 |
-| ARC-C | 25 | acc_norm | 0.5973 | 0.59 | +0.7 |
-| GSM8K (strict) | 8 | exact_match | 0.5072 | 0.563 (maj@8) | -5.6 (协议差) |
-| HumanEval | 0 | pass@1 | 0.348 | 0.331 | +1.7 |
-| BBH (CoT) | 3 | exact_match | 0.6310 | 0.62 | +1.1 |</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Shot</th>
+<th>Metric</th>
+<th>我们</th>
+<th>Meta card</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MMLU</td>
+<td>5</td>
+<td>acc</td>
+<td>0.6810</td>
+<td>0.68</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>HellaSwag</td>
+<td>0</td>
+<td>acc_norm</td>
+<td>0.7920</td>
+<td>0.79</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>WinoGrande</td>
+<td>5</td>
+<td>acc</td>
+<td>0.7372</td>
+<td>0.74</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>ARC-C</td>
+<td>25</td>
+<td>acc_norm</td>
+<td>0.5973</td>
+<td>0.59</td>
+<td>+0.7</td>
+</tr>
+<tr>
+<td>GSM8K (strict)</td>
+<td>8</td>
+<td>exact_match</td>
+<td>0.5072</td>
+<td>0.563 (maj@8)</td>
+<td>-5.6 (协议差)</td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>0</td>
+<td>pass@1</td>
+<td>0.348</td>
+<td>0.331</td>
+<td>+1.7</td>
+</tr>
+<tr>
+<td>BBH (CoT)</td>
+<td>3</td>
+<td>exact_match</td>
+<td>0.6310</td>
+<td>0.62</td>
+<td>+1.1</td>
+</tr>
+</tbody>
+</table>
 <p>Δ 在 ±2 pp 内基本说明 pipeline 没大问题；GSM8K -5.6 是因为 Meta 报 maj@8 而我们是 pass@1，乘上 1.10–1.12 的 maj 增益就回到一致。这个对账表是每个新 ckpt 跑完的标准 sanity check——任何一项 &gt;5 pp 漂移就要回头查 prompt / stop / tokenizer。</p>
 <h2>引用</h2>
-<p>[^biderman2024lessons]: Biderman, S. et al. (2024). <em>Lessons from the Trenches on Reproducible Evaluation of Language Models</em>. arXiv:2405.14782.</p>
-<p>[^gu2024olmes]: Gu, Y. et al. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (NAACL 2025 Findings).</p>
-<p>[^gema2024mmluredux]: Gema, A. P. et al. (2024). <em>Are We Done with MMLU?</em> arXiv:2406.04127.</p>
-<p>[^chizhov2025goldenswag]: Chizhov, P., Nee, M., Langlais, P.-C., Yamshchikov, I. P. (2025). <em>What the HellaSwag? On the Validity of Common-Sense Reasoning Benchmarks</em>. arXiv:2504.07825.</p>
-<p>[^surge2024hellabad]: Surge AI. (2024). <em>HellaSwag or HellaBad? 36% of this popular LLM benchmark contains errors</em>. https://surgehq.ai/blog/hellaswag-or-hellabad-36-of-this-popular-llm-benchmark-contains-errors.</p>
-<p>[^mirzadeh2024gsm-symbolic]: Mirzadeh, I. et al. (2024). <em>GSM-Symbolic: Understanding the Limitations of Mathematical Reasoning in Large Language Models</em>. arXiv:2410.05229 (ICLR 2025).</p>
-<p>[^zhang2024gsm1k]: Zhang, H. et al. (2024). <em>A Careful Examination of Large Language Model Performance on Grade School Arithmetic</em>. arXiv:2405.00332 (NeurIPS 2024 D&amp;B).</p>
-<p>[^liu-2023-evalplus]: Liu, J. et al. (2023). <em>Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation</em>. arXiv:2305.01210.</p>
-<p>[^suzgun2023bbh]: Suzgun, M. et al. (2023). <em>Challenging BIG-Bench Tasks and Whether Chain-of-Thought Can Solve Them</em>. EMNLP Findings 2023. arXiv:2210.09261.</p>
-<p>[^madaan2023invalidcot]: Madaan, A., Yazdanbakhsh, A. (2023). <em>Invalid Logic, Equivalent Gains: The Bizarreness of Reasoning in Language Model Prompting</em>. arXiv:2307.10573.</p>
-<p>[^bbeh-paper]: Kazemi, M. et al. (2025). <em>BIG-Bench Extra Hard</em>. arXiv:2502.19187.</p>
-<p>[^chang2025globalpiqa]: Chang, T. A. et al. (2025). <em>Global PIQA: Evaluating Physical Commonsense Reasoning Across 100+ Languages and Cultures</em>. arXiv:2510.24081.</p>
-<p>[^llama3-card]: Meta. <em>Llama 3.1 Model Card</em>. https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md.</p>
-<p>[^llama3-2024paper]: Dubey, A. et al. (2024). <em>The Llama 3 Herd of Models</em>. arXiv:2407.21783.</p>
-<p>[^eleuther-mcq-norm]: EleutherAI Blog. <em>Multiple Choice Normalization in LM Evaluation</em>. https://blog.eleuther.ai/multiple-choice-normalization/.</p>
+<hr class="footnotes-sep" />
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Gu, Y. et al. (2024). <em>OLMES: A Standard for Language Model Evaluations</em>. arXiv:2406.08446 (NAACL 2025 Findings). <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>EleutherAI Blog. <em>Multiple Choice Normalization in LM Evaluation</em>. https://blog.eleuther.ai/multiple-choice-normalization/. <a href="#fnref2" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn3" class="footnote-item"><p>Gema, A. P. et al. (2024). <em>Are We Done with MMLU?</em> arXiv:2406.04127. <a href="#fnref3" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn4" class="footnote-item"><p>Surge AI. (2024). <em>HellaSwag or HellaBad? 36% of this popular LLM benchmark contains errors</em>. https://surgehq.ai/blog/hellaswag-or-hellabad-36-of-this-popular-llm-benchmark-contains-errors. <a href="#fnref4" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn5" class="footnote-item"><p>Chizhov, P., Nee, M., Langlais, P.-C., Yamshchikov, I. P. (2025). <em>What the HellaSwag? On the Validity of Common-Sense Reasoning Benchmarks</em>. arXiv:2504.07825. <a href="#fnref5" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn6" class="footnote-item"><p>Mirzadeh, I. et al. (2024). <em>GSM-Symbolic: Understanding the Limitations of Mathematical Reasoning in Large Language Models</em>. arXiv:2410.05229 (ICLR 2025). <a href="#fnref6" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn7" class="footnote-item"><p>Zhang, H. et al. (2024). <em>A Careful Examination of Large Language Model Performance on Grade School Arithmetic</em>. arXiv:2405.00332 (NeurIPS 2024 D&amp;B). <a href="#fnref7" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn8" class="footnote-item"><p>Liu, J. et al. (2023). <em>Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation</em>. arXiv:2305.01210. <a href="#fnref8" class="footnote-backref">↩︎</a> <a href="#fnref8:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn9" class="footnote-item"><p>Suzgun, M. et al. (2023). <em>Challenging BIG-Bench Tasks and Whether Chain-of-Thought Can Solve Them</em>. EMNLP Findings 2023. arXiv:2210.09261. <a href="#fnref9" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn10" class="footnote-item"><p>Madaan, A., Yazdanbakhsh, A. (2023). <em>Invalid Logic, Equivalent Gains: The Bizarreness of Reasoning in Language Model Prompting</em>. arXiv:2307.10573. <a href="#fnref10" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn11" class="footnote-item"><p>Kazemi, M. et al. (2025). <em>BIG-Bench Extra Hard</em>. arXiv:2502.19187. <a href="#fnref11" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn12" class="footnote-item"><p>Chang, T. A. et al. (2025). <em>Global PIQA: Evaluating Physical Commonsense Reasoning Across 100+ Languages and Cultures</em>. arXiv:2510.24081. <a href="#fnref12" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn13" class="footnote-item"><p>Meta. <em>Llama 3.1 Model Card</em>. https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md. <a href="#fnref13" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn14" class="footnote-item"><p>Dubey, A. et al. (2024). <em>The Llama 3 Herd of Models</em>. arXiv:2407.21783. <a href="#fnref14" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 <section id="05-reasoning-era">
@@ -1142,7 +1444,7 @@ max        | 102,847      | 103,884
 <h2>Self-consistency / maj@k：成本曲线与置信区间</h2>
 <p>reasoning era 的&quot;标准报告动作&quot;是 <code>maj@k</code>（k 次采样，取多数票答案）。AIME 30 题、maj@64 = 1,920 次推理；R1 平均每次 ~7k token，total ≈ 13.4M token；按 8×H100 80G 部署、throughput ≈ 800 token/s（vLLM bf16，batch=8），wall clock ≈ 4.6 小时。一遍 AIME 2024 + 2025 maj@64 = ~9 小时。</p>
 <p>Soohak / FrontierMath / MathArena 都要求 maj@32 或 Avg@3 以稳定数字。算下来一个 R1-size 模型跑全套 reasoning suite（AIME / MATH-500 / GPQA-Diamond / LiveCodeBench v6 / SWE-Bench Pro）一次 ≈ 240 H100-小时，价格约 $480-$720（按 spot $2-3/hr/H100）。</p>
-<p>maj@k 的统计置信区间常被低估。AIME 30 题 maj@1 的标准差是 √(p(1-p)/30) ≈ 9.1% (p=0.5)；maj@32 名义上把 p 估计的精度提高 √32 ≈ 5.7 倍，但 effective sample size 还是 30（你只有 30 题），CI ≈ ±5 pp 是天花板。AIME 2025 上 R1 报 79.8% 与 79.2% 在 CI 内不可分。MathArena 论文[^dekoninck2026matharena] 显式给 bootstrap CI，这是 reasoning era 该有的报告规范——单一数字不附 CI 没意义。</p>
+<p>maj@k 的统计置信区间常被低估。AIME 30 题 maj@1 的标准差是 √(p(1-p)/30) ≈ 9.1% (p=0.5)；maj@32 名义上把 p 估计的精度提高 √32 ≈ 5.7 倍，但 effective sample size 还是 30（你只有 30 题），CI ≈ ±5 pp 是天花板。AIME 2025 上 R1 报 79.8% 与 79.2% 在 CI 内不可分。MathArena 论文<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup> 显式给 bootstrap CI，这是 reasoning era 该有的报告规范——单一数字不附 CI 没意义。</p>
 <h2>数学 grader：boxed-answer 提取与 SymPy normalize</h2>
 <p>MATH / MATH-500 / AIME / FrontierMath 的评分骨架是相同的：&quot;抽取 <code>\boxed{...}</code> 内表达式 → SymPy normalize → 与 gold 比较&quot;。代码长这样：</p>
 <pre><code class="language-python">import re
@@ -1198,8 +1500,8 @@ def math_equivalent(pred: str, gold: str) -&gt; bool:
 </code></pre>
 <p><code>% 1000</code> 是因为 AIME 答案保证 0–999，模型偶尔写 <code>\boxed{1234}</code> 实际想表达的是 234（mod 1000）；MathArena 的 grader 走这条路。</p>
 <h3>FrontierMath 与 MathArena 的 grader 差异</h3>
-<p>FrontierMath 每题有作者预设的 verification function——SymPy 检验 / 数值检验 / 结构匹配——题级 grader 而非通用 grader。所有评测必须在 Epoch AI 自己的 server 上跑（题在 hold-out set 中），普通用户没法本地跑。2026-05-11 Epoch AI 自己发现 ~1/3 题 ground-truth 有 fatal errors[^epoch-tier4]，leaderboard 临时 frozen——这暴露了非公开 grader 的 governance 风险。</p>
-<p>MathArena[^dekoninck2026matharena] 走另一条路：grader 全公开，generation + LLM-as-judge（Gemini-3-Flash 作 judge）+ 人工抽检 false positive。所有题、所有 generation、所有 judge log 都在 <code>huggingface.co/MathArena</code> 公开。CLI：</p>
+<p>FrontierMath 每题有作者预设的 verification function——SymPy 检验 / 数值检验 / 结构匹配——题级 grader 而非通用 grader。所有评测必须在 Epoch AI 自己的 server 上跑（题在 hold-out set 中），普通用户没法本地跑。2026-05-11 Epoch AI 自己发现 ~1/3 题 ground-truth 有 fatal errors<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>，leaderboard 临时 frozen——这暴露了非公开 grader 的 governance 风险。</p>
+<p>MathArena<sup class="footnote-ref"><a href="#fn1" id="fnref1:1">[1:1]</a></sup> 走另一条路：grader 全公开，generation + LLM-as-judge（Gemini-3-Flash 作 judge）+ 人工抽检 false positive。所有题、所有 generation、所有 judge log 都在 <code>huggingface.co/MathArena</code> 公开。CLI：</p>
 <pre><code class="language-bash">uv run scripts/run.py --comp arxivmath_2026_04 --models gpt-5 --n_runs 4
 </code></pre>
 <p>ArXivMath 每月 ~40 题，n_runs=4 即 ~160 次推理；Apex set 60 题、USAMO 6 题、AIME 2026 30 题。MathArena 月卷数字不可单看——CI ±5% 量级。</p>
@@ -1229,9 +1531,9 @@ def extract_gpqa_letter(text: str) -&gt; str | None:
     return None
 </code></pre>
 <p>三层 fallback 比单一 <code>\\boxed{}</code> 抽出率高 8-12 pp（实测 R1-Distill-Llama-70B 上 79% → 89%）。lm-evaluation-harness 在 <code>lm_eval/tasks/gpqa/cot_n_shot/utils.py</code> 用类似策略。</p>
-<p>198 题 binomial CI：±2 pp 是噪声地板。frontier model 在 GPQA-Diamond 上 92% 与 94% 不可分。Epoch AI[^gpqa-epoch] 估算 ~10% 题目本身有效性可疑，&quot;真&quot; ceiling 在 90% 上下。</p>
+<p>198 题 binomial CI：±2 pp 是噪声地板。frontier model 在 GPQA-Diamond 上 92% 与 94% 不可分。Epoch AI<sup class="footnote-ref"><a href="#fn3" id="fnref3">[3]</a></sup> 估算 ~10% 题目本身有效性可疑，&quot;真&quot; ceiling 在 90% 上下。</p>
 <h2>LiveCodeBench：月更窗口与 release_version 过滤</h2>
-<p>LiveCodeBench (LCB)[^jain-2024-livecodebench] 的核心机制：每月从 LeetCode / AtCoder / Codeforces 拉新题，按 release date 标签。每次评测必须指定 <code>--release_version</code> 和（可选）<code>--start_date / --end_date</code>，把模型只测在 cutoff 之后发布的题上。</p>
+<p>LiveCodeBench (LCB)<sup class="footnote-ref"><a href="#fn4" id="fnref4">[4]</a></sup> 的核心机制：每月从 LeetCode / AtCoder / Codeforces 拉新题，按 release date 标签。每次评测必须指定 <code>--release_version</code> 和（可选）<code>--start_date / --end_date</code>，把模型只测在 cutoff 之后发布的题上。</p>
 <pre><code class="language-bash"># LCB 自家 harness，不在 lm-eval-harness 主线
 git clone https://github.com/LiveCodeBench/LiveCodeBench
 cd LiveCodeBench
@@ -1246,7 +1548,7 @@ python -m lcb_runner.runner.main \
   --n 1 \
   --max_tokens 32768
 </code></pre>
-<p>v6 是 2026-05 当前 stable release，含 2023-05 至 2025-04 共 1,055 题。&quot;contamination-free&quot; 评测对一个 2024-12 cutoff 的模型应该用 <code>start_date=2025-01-01</code>，仅评测 ~150 题。问题：150 题的 binomial CI 是 ±4 pp，frontier 区分度有限。LCB-Pro[^livecodebench-pro-2025] 是 IOI/ICPC 奖牌得主重新标注的更难版本，2025-06 发布；frontier model 在 medium 题只有 53%、hard 题 0%——这是 LCB v6 已 saturated 的实证。</p>
+<p>v6 是 2026-05 当前 stable release，含 2023-05 至 2025-04 共 1,055 题。&quot;contamination-free&quot; 评测对一个 2024-12 cutoff 的模型应该用 <code>start_date=2025-01-01</code>，仅评测 ~150 题。问题：150 题的 binomial CI 是 ±4 pp，frontier 区分度有限。LCB-Pro<sup class="footnote-ref"><a href="#fn5" id="fnref5">[5]</a></sup> 是 IOI/ICPC 奖牌得主重新标注的更难版本，2025-06 发布；frontier model 在 medium 题只有 53%、hard 题 0%——这是 LCB v6 已 saturated 的实证。</p>
 <h3>Sandbox：Docker 是必须</h3>
 <p>LCB 用 <code>containerd-snapshotter</code> + <code>python:3.10-slim</code> Docker container 跑 generation。和 HumanEval 一样不能在主机直接跑——竞赛题里 <code>while True: pass</code> 是常见 fail，没 timeout 会卡死 worker。LCB 自带 30 秒 hard timeout + 4GB memory cap。生产环境推荐用 <code>--num_process_evaluate 32</code> 起 32 个并行 sandbox，跑 1000 题 ≈ 25 分钟。</p>
 <p>LCB 还有 <code>test_output_prediction</code> 与 <code>code_execution</code> 两个 scenario。前者让模型不跑代码预测输出，后者反过来给函数 + 输入预测函数行为。两者都不需要 sandbox（只是 generation + EM）。</p>
@@ -1262,7 +1564,7 @@ python -m lcb_runner.runner.main \
 <p>Verified 500 题在 12 个 repo（绝大多数 Python），SWE-Bench Pro 1865 题在 41 个 repo、4 种语言。工程上 3 个明显差异：</p>
 <ol>
 <li><strong>多语言 runtime</strong>：Verified Python-only，单 image 容易共用；Pro 含 Go / TS / JS，每语言一套 toolchain，Docker image 总大小从 Verified ~15GB 涨到 Pro ~85GB。本地存盘前先看磁盘。</li>
-<li><strong>patch 大小</strong>：Verified avg 1-2 LOC change in 1 file；Pro avg 107 LOC across 4.1 files。这意味着模型必须能在 ≥4 个文件间保持一致的修改——对 reasoning model 的 long-horizon planning 是真实考验。MorphLLM[^morphllm-2026-pro-gap] 测出 frontier model 在 Pro 比 Verified 掉 30-45 pp，主要在 multi-file 错位。</li>
+<li><strong>patch 大小</strong>：Verified avg 1-2 LOC change in 1 file；Pro avg 107 LOC across 4.1 files。这意味着模型必须能在 ≥4 个文件间保持一致的修改——对 reasoning model 的 long-horizon planning 是真实考验。MorphLLM<sup class="footnote-ref"><a href="#fn6" id="fnref6">[6]</a></sup> 测出 frontier model 在 Pro 比 Verified 掉 30-45 pp，主要在 multi-file 错位。</li>
 <li><strong>私有集</strong>：Pro Private 276 题在 Scale 内部代码库（startup 工程师未公开的代码），用户提交 prediction，Scale 跑评测返回数字——你看不到题。这套 governance 类似 FrontierMath 但比 FrontierMath 多了&quot;商业 NDA&quot;维度，Scale 经济利益与 benchmark independence 之间的张力比 Epoch AI 更直接。</li>
 </ol>
 <p>LiveCodeBench 与 SWE-Bench Pro 配对是 2026 frontier code LM 的标配：前者测单文件算法（saturated 信号弱但 cheap），后者测 repo-level（区分度强但 expensive，~$3-5/task with frontier model agents）。</p>
@@ -1273,7 +1575,7 @@ python -m lcb_runner.runner.main \
 <li><strong>chat template 不能开</strong>：base ckpt 跑 GPQA-Diamond 想测 &quot;5-shot CoT&quot; 协议，必须 <code>--apply_chat_template false</code>，否则 base 模型看到 <code>&lt;|im_start|&gt;system\n</code> 整体崩溃。</li>
 <li><strong>temperature 必须高</strong>：base ckpt 在 reasoning 类 task 上 greedy decoding 会落入&quot;answer-only&quot;陷阱（不生成 chain），需 <code>temperature=0.8</code> + 长 <code>max_tokens</code> 强制延展 generation。</li>
 </ul>
-<p>base ckpt 跑 reasoning benchmark 唯一合理的场景是 in-training-probing[^liu2026probing]：把 pretrain 中间 checkpoint 当 indicator，看 GSM8K / MATH 的趋势线是否正在改善。绝对数字不重要、变化方向重要。</p>
+<p>base ckpt 跑 reasoning benchmark 唯一合理的场景是 in-training-probing<sup class="footnote-ref"><a href="#fn7" id="fnref7">[7]</a></sup>：把 pretrain 中间 checkpoint 当 indicator，看 GSM8K / MATH 的趋势线是否正在改善。绝对数字不重要、变化方向重要。</p>
 <h3>Thinking-token 与 generation-only 区分</h3>
 <p>一个 reasoning era 评测易错的地方：报告分数时把 thinking-token 也算进 &quot;generation length&quot;，但 thinking 内容不应进 answer extraction。R1 输出格式：</p>
 <pre><code>&lt;think&gt;
@@ -1297,37 +1599,133 @@ The answer is \boxed{42}.
 <p>新一代 reasoning benchmark 越来越倾向 API-only / hold-out 模式：</p>
 <ul>
 <li><strong>MathArena</strong>：grader 全公开，但题可选 mine 自 arXiv（公开）或 USAMO（公开）。本地 reproducible。</li>
-<li><strong>LemmaBench</strong>[^peyronnet2026lemmabench]：题源 arXiv 公开，但 self-containment filter + proof LLM-judge 都需要 API access；理论可 local 跑但成本高（677 lemma × 1 generator + 1 judge call）。</li>
-<li><strong>Soohak</strong>[^son2026soohak]：题 partially private，dataset 计划 2026 年底公开。当前只能向作者申请 evaluation。Refusal subset 99 题是&quot;病态题&quot;——模型应回答 &quot;this problem has issue X&quot; 而非给数字答案。grader 是 LLM-judge 抽取 + 人工抽检。</li>
+<li><strong>LemmaBench</strong><sup class="footnote-ref"><a href="#fn8" id="fnref8">[8]</a></sup>：题源 arXiv 公开，但 self-containment filter + proof LLM-judge 都需要 API access；理论可 local 跑但成本高（677 lemma × 1 generator + 1 judge call）。</li>
+<li><strong>Soohak</strong><sup class="footnote-ref"><a href="#fn9" id="fnref9">[9]</a></sup>：题 partially private，dataset 计划 2026 年底公开。当前只能向作者申请 evaluation。Refusal subset 99 题是&quot;病态题&quot;——模型应回答 &quot;this problem has issue X&quot; 而非给数字答案。grader 是 LLM-judge 抽取 + 人工抽检。</li>
 <li><strong>FrontierMath</strong>：题完全私有（Tier 4 中 48/50 为 private），全部 evaluation 由 Epoch AI 跑，self-reported 数字。</li>
 </ul>
 <p>工程上这意味着 reasoning-era 评测的&quot;我能本地跑通&quot;门槛在快速上升。lm-eval-harness 主线只覆盖到 AIME / MATH-500 / GPQA-Diamond / LiveCodeBench（部分）。Soohak / FrontierMath / MathArena 都是各自团队自家 CLI。一个负责任的 release report 至少要 (a) 自家 lm-eval-harness 跑可复现部分；(b) 提交 evaluation 申请到至少 1 个 hold-out benchmark；(c) 明确标注 self-reported vs 第三方验证。</p>
 <h2>一份完整成本估算（参考）</h2>
 <p>7B reasoning-distill 模型跑全套 reasoning suite（除 FrontierMath / Soohak 之外的本地可跑部分）的成本，8×H100 80G、vLLM bf16、<code>max_gen_toks=32k</code>、平均 thinking ~5k token：</p>
-<p>| Benchmark | 题数 | k (maj@k) | 总 sample | wall clock | GPU-hr |
-|---|---|---|---|---|---|
-| AIME 2024+2025 | 60 | 32 | 1,920 | ~6 h | 48 |
-| MATH-500 | 500 | 4 | 2,000 | ~3 h | 24 |
-| GPQA-Diamond | 198 | 4 | 792 | ~1.5 h | 12 |
-| LiveCodeBench v6 (post-cutoff 150 题) | 150 | 1 | 150 | ~30 min | 4 |
-| BBEH (24 task × ~100 题) | ~2400 | 1 | 2,400 | ~2 h | 16 |
-| MathArena ArXivMath 月卷 | ~40 | 4 | 160 | ~30 min | 4 |
-| LemmaBench | 677 | 1 + judge | ~1,400 | ~3 h | 24 |
-| <strong>小计</strong> | — | — | ~8,800 | ~16.5 h | <strong>~132</strong> |
-| SWE-Bench Pro Public | 731 | 1 | 731 | ~12 h (agent loop) | 96 |
-| <strong>含 SWE-Pro 合计</strong> | — | — | ~9,500 | ~28 h | <strong>~228</strong> |</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>题数</th>
+<th>k (maj@k)</th>
+<th>总 sample</th>
+<th>wall clock</th>
+<th>GPU-hr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AIME 2024+2025</td>
+<td>60</td>
+<td>32</td>
+<td>1,920</td>
+<td>~6 h</td>
+<td>48</td>
+</tr>
+<tr>
+<td>MATH-500</td>
+<td>500</td>
+<td>4</td>
+<td>2,000</td>
+<td>~3 h</td>
+<td>24</td>
+</tr>
+<tr>
+<td>GPQA-Diamond</td>
+<td>198</td>
+<td>4</td>
+<td>792</td>
+<td>~1.5 h</td>
+<td>12</td>
+</tr>
+<tr>
+<td>LiveCodeBench v6 (post-cutoff 150 题)</td>
+<td>150</td>
+<td>1</td>
+<td>150</td>
+<td>~30 min</td>
+<td>4</td>
+</tr>
+<tr>
+<td>BBEH (24 task × ~100 题)</td>
+<td>~2400</td>
+<td>1</td>
+<td>2,400</td>
+<td>~2 h</td>
+<td>16</td>
+</tr>
+<tr>
+<td>MathArena ArXivMath 月卷</td>
+<td>~40</td>
+<td>4</td>
+<td>160</td>
+<td>~30 min</td>
+<td>4</td>
+</tr>
+<tr>
+<td>LemmaBench</td>
+<td>677</td>
+<td>1 + judge</td>
+<td>~1,400</td>
+<td>~3 h</td>
+<td>24</td>
+</tr>
+<tr>
+<td><strong>小计</strong></td>
+<td>—</td>
+<td>—</td>
+<td>~8,800</td>
+<td>~16.5 h</td>
+<td><strong>~132</strong></td>
+</tr>
+<tr>
+<td>SWE-Bench Pro Public</td>
+<td>731</td>
+<td>1</td>
+<td>731</td>
+<td>~12 h (agent loop)</td>
+<td>96</td>
+</tr>
+<tr>
+<td><strong>含 SWE-Pro 合计</strong></td>
+<td>—</td>
+<td>—</td>
+<td>~9,500</td>
+<td>~28 h</td>
+<td><strong>~228</strong></td>
+</tr>
+</tbody>
+</table>
 <p>按 spot $2.5/hr/H100：本地可跑 reasoning suite 一次 $570，含 SWE-Pro 一次 ~$1,140。这只是一次 pretrain ckpt 的 final eval；training mid-run 不可能这么跑。</p>
 <p>正确的 cadence 是：(1) 每 100k step 跑 <code>MATH-500 + GPQA-Diamond + AIME</code> 三件套 maj@1 quick check（≈ 1 GPU-hr）；(2) 每 milestone 跑全套 maj@k；(3) Release-only 再跑 SWE-Pro / FrontierMath / Soohak 的 hold-out 申请评测。把全套用作 mid-run monitor 是预算自杀。</p>
 <h2>引用</h2>
-<p>[^dekoninck2026matharena]: Dekoninck, J. et al. (2026). <em>Beyond Benchmarks: MathArena as an Evaluation Platform for Mathematics with LLMs</em>. arXiv:2605.00674.</p>
-<p>[^epoch-tier4]: Epoch AI. (2026). <em>FrontierMath Tier 4 benchmark page</em>. https://epoch.ai/benchmarks/frontiermath-tier-4.</p>
-<p>[^gpqa-epoch]: Burnham, G. (2025). <em>GPQA Diamond: What's Left?</em> Epoch AI Gradient Updates. https://epoch.ai/gradient-updates/gpqa-diamond-whats-left.</p>
-<p>[^jain-2024-livecodebench]: Jain, N. et al. (2024). <em>LiveCodeBench: Holistic and Contamination Free Evaluation of LLMs for Code</em>. arXiv:2403.07974.</p>
-<p>[^livecodebench-pro-2025]: LiveCodeBench Pro Team. (2025). <em>LiveCodeBench Pro: How Do Olympiad Medalists Judge LLMs in Competitive Programming?</em> arXiv:2506.11928.</p>
-<p>[^morphllm-2026-pro-gap]: MorphLLM. (2026). <em>SWE-Bench Pro vs Verified Contamination Gap</em>. https://www.morphllm.com/swe-bench-pro.</p>
-<p>[^peyronnet2026lemmabench]: Peyronnet, A., Gloeckle, F., Hayat, A. (2026). <em>LemmaBench: A Live, Research-Level Benchmark to Evaluate LLM Capabilities in Mathematics</em>. arXiv:2602.24173.</p>
-<p>[^son2026soohak]: Son, G., Kim, S., Arnett, C. et al. (2026). <em>Soohak: A Mathematician-Curated Benchmark for Evaluating Research-level Math Capabilities of LLMs</em>. arXiv:2605.09063.</p>
-<p>[^liu2026probing]: Liu, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025.</p>
+<hr class="footnotes-sep" />
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>Dekoninck, J. et al. (2026). <em>Beyond Benchmarks: MathArena as an Evaluation Platform for Mathematics with LLMs</em>. arXiv:2605.00674. <a href="#fnref1" class="footnote-backref">↩︎</a> <a href="#fnref1:1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>Epoch AI. (2026). <em>FrontierMath Tier 4 benchmark page</em>. https://epoch.ai/benchmarks/frontiermath-tier-4. <a href="#fnref2" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn3" class="footnote-item"><p>Burnham, G. (2025). <em>GPQA Diamond: What's Left?</em> Epoch AI Gradient Updates. https://epoch.ai/gradient-updates/gpqa-diamond-whats-left. <a href="#fnref3" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn4" class="footnote-item"><p>Jain, N. et al. (2024). <em>LiveCodeBench: Holistic and Contamination Free Evaluation of LLMs for Code</em>. arXiv:2403.07974. <a href="#fnref4" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn5" class="footnote-item"><p>LiveCodeBench Pro Team. (2025). <em>LiveCodeBench Pro: How Do Olympiad Medalists Judge LLMs in Competitive Programming?</em> arXiv:2506.11928. <a href="#fnref5" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn6" class="footnote-item"><p>MorphLLM. (2026). <em>SWE-Bench Pro vs Verified Contamination Gap</em>. https://www.morphllm.com/swe-bench-pro. <a href="#fnref6" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn7" class="footnote-item"><p>Liu, Z. et al. (2026). <em>Fast and Accurate Probing of In-Training LLMs' Downstream Performances</em>. arXiv:2604.01025. <a href="#fnref7" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn8" class="footnote-item"><p>Peyronnet, A., Gloeckle, F., Hayat, A. (2026). <em>LemmaBench: A Live, Research-Level Benchmark to Evaluate LLM Capabilities in Mathematics</em>. arXiv:2602.24173. <a href="#fnref8" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn9" class="footnote-item"><p>Son, G., Kim, S., Arnett, C. et al. (2026). <em>Soohak: A Mathematician-Curated Benchmark for Evaluating Research-level Math Capabilities of LLMs</em>. arXiv:2605.09063. <a href="#fnref9" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 <section id="06-live-contamination">
@@ -1445,14 +1843,54 @@ u, p_val = scipy.stats.mannwhitneyu(test_set_div, clean_set_div, alternative='le
 <p>CCV 的工程成本是 N 倍推理预算，对大规模 benchmark 全量检测不现实，更适合&quot;诊断已发布闭源模型对某个 benchmark 是否污染&quot;这类 forensic 用法。<strong>该方法在 abstract 中声称 release code/data 但 arxiv 页未给具体 URL</strong>——和 Closed-LLM Watermarking 类似，目前还是 paper-only。</p>
 <h2>6.6 Stage 0.5 frontier scan 中 contamination methods 的工程可行性</h2>
 <p>我们在 Stage 0.5 frontier scan 里捞到 5 个 2026 新 contamination 方向 + 1 个 sealed-exam 协议 + 1 个 judge reliability 工具，逐一从工程视角评估：</p>
-<p>| 方法 | arxiv | 工程实操可行性 | 障碍 |
-|---|---|---|---|
-| CCV / HCCA | 2603.21454 | 可自实现，~50 行 | repo 未公开，N 倍推理成本，仅 9 题验证 |
-| Dataset Watermarking (closed-LLM) | 2605.06865 | dataset owner 才能用 | 无 reference impl，attacker 可 paraphrase 干扰 |
-| Soft Contamination (semantic dupes) | 2602.12413 | 需 TB 级 embed 全 corpus | 无 turnkey tool、阈值主观 |
-| LLM Olympiad (sealed-exam) | 2603.23292 | 协议倡议，无代码 | 需赛事组织方 + 独立 infra |
-| Judge Reliability Harness | 2603.05399 | <strong>已开源</strong> github.com/RANDCorporation/judge-reliability-harness | 仅 4 benchmark × 4 judge 验证 |
-| Provable Joint Decontamination (JECS) | 2605.21543 | conformal procedure，未释 impl | 多模型联合判定，单一团队难复现 |</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>arxiv</th>
+<th>工程实操可行性</th>
+<th>障碍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CCV / HCCA</td>
+<td>2603.21454</td>
+<td>可自实现，~50 行</td>
+<td>repo 未公开，N 倍推理成本，仅 9 题验证</td>
+</tr>
+<tr>
+<td>Dataset Watermarking (closed-LLM)</td>
+<td>2605.06865</td>
+<td>dataset owner 才能用</td>
+<td>无 reference impl，attacker 可 paraphrase 干扰</td>
+</tr>
+<tr>
+<td>Soft Contamination (semantic dupes)</td>
+<td>2602.12413</td>
+<td>需 TB 级 embed 全 corpus</td>
+<td>无 turnkey tool、阈值主观</td>
+</tr>
+<tr>
+<td>LLM Olympiad (sealed-exam)</td>
+<td>2603.23292</td>
+<td>协议倡议，无代码</td>
+<td>需赛事组织方 + 独立 infra</td>
+</tr>
+<tr>
+<td>Judge Reliability Harness</td>
+<td>2603.05399</td>
+<td><strong>已开源</strong> github.com/RANDCorporation/judge-reliability-harness</td>
+<td>仅 4 benchmark × 4 judge 验证</td>
+</tr>
+<tr>
+<td>Provable Joint Decontamination (JECS)</td>
+<td>2605.21543</td>
+<td>conformal procedure，未释 impl</td>
+<td>多模型联合判定，单一团队难复现</td>
+</tr>
+</tbody>
+</table>
 <p>唯一<strong>今天就能落地</strong>的是 Judge Reliability Harness——RAND Corporation 维护 active 的 repo，给你一个 judge model + benchmark，自动生成 perturbation 测试套件（formatting / paraphrasing / verbosity / label flipping 四种），输出 reliability matrix。装法：</p>
 <pre><code class="language-bash">git clone https://github.com/RANDCorporation/judge-reliability-harness
 cd judge-reliability-harness &amp;&amp; pip install -e .
@@ -1478,21 +1916,21 @@ python -m judge_reliability.run \
 <p>下一章转入长上下文 / 多模态 / agent 的工程栈。这条路线和本章的&quot;动态题目 + 远端 judge&quot;不同——它的工程问题集中在执行环境（VM / Docker / 浏览器 driver）、KV cache / dimension scaling、多步骤 horizon 上的成本控制。</p>
 <h3>引用条目</h3>
 <ul>
-<li>[^livebench-paper]: White, C., Dooley, S., Roberts, M., Pal, A., Feuer, B., Jain, S., et al. (2025). LiveBench: A Challenging, Contamination-Limited LLM Benchmark. ICLR 2025 Spotlight. https://arxiv.org/abs/2406.19314</li>
-<li>[^livebench-repo]: LiveBench (2024–2026). https://github.com/LiveBench/LiveBench</li>
-<li>[^livecodebench-repo]: LiveCodeBench (2024–2026). https://github.com/LiveCodeBench/LiveCodeBench</li>
-<li>[^mixeval-paper]: Ni, J., Xue, F., Yue, X., et al. (2024). MixEval: Deriving Wisdom of the Crowd from LLM Benchmark Mixtures. NeurIPS 2024. https://arxiv.org/abs/2406.06565</li>
 <li></li>
-<li>[^arena-hard-paper]: Li, T., Chiang, W.-L., Frick, E., et al. (2024). Arena-Hard and BenchBuilder Pipeline. https://arxiv.org/abs/2406.11939</li>
 <li></li>
-<li>[^arena-hard-blog]: LMSYS Blog (2024). The Arena-Hard Pipeline. https://www.lmsys.org/blog/2024-04-19-arena-hard/</li>
-<li>[^verbosity-bias]: Saito, K., et al. (2023). Verbosity Bias in Preference Labeling by LLMs. https://arxiv.org/abs/2310.10076</li>
-<li>[^soft-contam-2026]: Spiesberger, A., Vazquez, J. J., Pochinkov, N., et al. (2026). Soft Contamination Means Benchmarks Test Shallow Generalization. https://arxiv.org/abs/2602.12413</li>
-<li>[^ccv-2026]: Song, T.-E. (2026). Cross-Context Verification. https://arxiv.org/abs/2603.21454</li>
-<li>[^closed-watermark-2026]: Huang, P., Chaudhuri, K., Wang, Y.-X. (2026). Dataset Watermarking for Closed LLMs with Provable Detection. https://arxiv.org/abs/2605.06865</li>
-<li>[^llm-olympiad-2026]: Cruz, J. C. B., Aji, A. F. (2026). LLM Olympiad: Why Model Evaluation Needs a Sealed Exam. https://arxiv.org/abs/2603.23292</li>
-<li>[^judge-reliab-2026]: Dev, S., Sloan, A., Kavner, J., Kong, N., Sandler, M. (2026). Judge Reliability Harness. https://arxiv.org/abs/2603.05399; repo: https://github.com/RANDCorporation/judge-reliability-harness</li>
-<li>[^jecs-2026]: Provable Joint Decontamination via Joint Envelope Conformal Selection. https://arxiv.org/abs/2605.21543</li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
 </ul>
 
 </section>
@@ -1627,30 +2065,30 @@ mcpmark run --task-id all --model gpt-5-medium \
 <p>工程章节对这些 benchmark 的态度：只引用 paper 数字，不写命令行——读者如果要跑，得联系作者拿 access。下一章 (Frontier Watch appendix) 会再次诚实声明这些 benchmark 未入 deep tier 的工程原因。</p>
 <h3>引用条目</h3>
 <ul>
-<li>[^niah-repo]: Kamradt, G. (2023). LLMTest_NeedleInAHaystack. https://github.com/gkamradt/LLMTest_NeedleInAHaystack</li>
-<li>[^ruler-paper]: Hsieh, C.-P., Sun, S., et al. (2024). RULER: What's the Real Context Size of Your Long-Context Language Models? COLM 2024. https://arxiv.org/abs/2404.06654</li>
-<li>[^ruler-critique-2025]: A Controllable Examination for Long-Context Language Models (2025). https://arxiv.org/pdf/2506.02921</li>
-<li>[^longbench-v2-paper]: Bai, Y., Tu, S., et al. (2025). LongBench v2. ACL 2025. https://arxiv.org/abs/2412.15204</li>
-<li>[^babilong-paper]: Kuratov, Y., Bulatov, A., et al. (2024). BABILong. NeurIPS 2024 D&amp;B. https://arxiv.org/abs/2406.10149</li>
-<li>[^mmmu-repo]: MMMU-Benchmark/MMMU. https://github.com/MMMU-Benchmark/MMMU</li>
-<li>[^mmmu-pro-paper]: Yue, X., et al. (2025). MMMU-Pro. ACL 2025. https://arxiv.org/abs/2409.02813</li>
-<li>[^gaia2023]: Mialon, G. et al. (2023). GAIA. arXiv:2311.12983</li>
-<li>[^gaia2-2026]: Froger, R. et al. (2026). Gaia2. ICLR 2026 oral. https://arxiv.org/abs/2602.11964</li>
-<li>[^berkeley-exploit-2026]: Wang, H., Mang, Q., Cheung, A., Sen, K., Song, D. (2026). How We Broke Top AI Agent Benchmarks. Berkeley RDI blog.</li>
-<li>[^osworld2024]: Xie, T. et al. (2024). OSWorld. NeurIPS 2024. https://arxiv.org/abs/2404.07972</li>
-<li>[^osworld-verified-2025]: XLANG Lab (2025-07-28). Introducing OSWorld-Verified. https://xlang.ai/blog/osworld-verified</li>
-<li>[^osworld-mcp-2026]: OSWorld-MCP team (2026). ICLR 2026. https://arxiv.org/abs/2510.24563</li>
-<li>[^webarena2023]: Zhou, S., Xu, F. F., Zhu, H. et al. (2023). WebArena. ICLR 2024. https://arxiv.org/abs/2307.13854</li>
-<li>[^webarena-verified-2026]: ServiceNow Research (2026). WebArena Verified. NeurIPS 2025. https://github.com/ServiceNow/webarena-verified</li>
-<li>[^agentbench2023]: Liu, X., et al. (2023). AgentBench. ICLR 2024. https://arxiv.org/abs/2308.03688</li>
-<li>[^tau-bench-2024]: Yao, S., Shinn, N., et al. (2024). τ-bench. https://arxiv.org/abs/2406.12045</li>
-<li>[^tau3-bench-2026]: Sierra Research (2026-03-18). τ³-Bench. https://sierra.ai/resources/research/tau-3-bench</li>
-<li>[^lost-in-simulation-2026]: Lost in Simulation. arXiv:2601.17087</li>
-<li>[^mcpmark-2026]: Wu, Z., Liu, X., et al. (2026). MCPMark. ICLR 2026. arXiv:2509.24002</li>
-<li>[^mcp-atlas-2026]: Bandi, C. et al. (2026). MCP-Atlas. arXiv:2602.00933</li>
-<li>[^agencybench-2026]: Shi, J., Xiao, Y., et al. (2026). AgencyBench. ACL 2026. arXiv:2601.11044</li>
-<li>[^astabench-2026]: Bragg, J., D'Arcy, M., et al. (2026). AstaBench. ICLR 2026 Oral. arXiv:2510.21652</li>
-<li>[^odysseys-2026]: Jang, L. K., Koh, J. Y., Fried, D., Salakhutdinov, R. (2026). Odysseys. arXiv:2604.24964</li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
 </ul>
 
 </section>
@@ -1658,13 +2096,42 @@ mcpmark run --task-id all --model gpt-5-medium \
 <h1>附录 · Frontier Watch — 执行环境与工程复杂度</h1>
 <p>Stage 0.5 frontier scan (2026-02-01 → 2026-05-25) 一共扫到 73 个 2026 新工作 <code>[frontier-scan]</code>，本附录从工程角度审：执行环境门槛、依赖体积、并发安全、reproducibility 风险，并诚实声明未入 deep tier 的工程原因。</p>
 <h2>A. 执行环境门槛分档</h2>
-<p>| 档位 | 工程门槛 | 例子 |
-|---|---|---|
-| 单机 CPU + python | &lt; 1 GB 依赖、可一键跑 | judge-reliability-harness (RAND) |
-| 单 GPU + Docker | 8–16 GB GPU mem，一台 Docker | mcpmark, livebench |
-| 多 GPU + 大内存 + VM | 4× H100、64 GB RAM、AWS / VMware | osworld, ruler (128K), agencybench |
-| live Internet + 远端 service | 不可完全 reproducible | odysseys, gaia (web tasks), tau3-voice |
-| API-only / hidden split | 自家集群拿不到数据 | swe-bench-pro, mcp-atlas hidden 500, gaia test |</p>
+<table>
+<thead>
+<tr>
+<th>档位</th>
+<th>工程门槛</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单机 CPU + python</td>
+<td>&lt; 1 GB 依赖、可一键跑</td>
+<td>judge-reliability-harness (RAND)</td>
+</tr>
+<tr>
+<td>单 GPU + Docker</td>
+<td>8–16 GB GPU mem，一台 Docker</td>
+<td>mcpmark, livebench</td>
+</tr>
+<tr>
+<td>多 GPU + 大内存 + VM</td>
+<td>4× H100、64 GB RAM、AWS / VMware</td>
+<td>osworld, ruler (128K), agencybench</td>
+</tr>
+<tr>
+<td>live Internet + 远端 service</td>
+<td>不可完全 reproducible</td>
+<td>odysseys, gaia (web tasks), tau3-voice</td>
+</tr>
+<tr>
+<td>API-only / hidden split</td>
+<td>自家集群拿不到数据</td>
+<td>swe-bench-pro, mcp-atlas hidden 500, gaia test</td>
+</tr>
+</tbody>
+</table>
 <p>工程上 deep tier 的隐性门槛：必须能在自家集群独立跑、必须有可复现 evaluator、必须给出可观察的 log。本档的 cut-off 把以下方向挡在 deep tier 之外：</p>
 <h2>B. 未入 deep tier 的工程原因</h2>
 <p><strong>B.1 paper-only，无公开 repo</strong>。<code>_KNOWN-ISSUES.md</code> 列了 8 张：lemmabench / soohak / eternalmath / riemann-bench / swe-rebench / cattle-trade / pac-bench / llm-olympiad / swe-bench-pro。要么数据集太小（riemann-bench n=25）防污染私有，要么 evaluator 只在 paper 描述。工程章节只能引用 paper 数字，不能写命令行。</p>
@@ -1687,15 +2154,15 @@ mcpmark run --task-id all --model gpt-5-medium \
 <p>2026 工程团队能&quot;今天就上手跑&quot;的 deep tier 集合：livebench, livecodebench, mixeval-hard, arena-hard-v2, niah, ruler, longbench-v2, babilong, mmmu, mmmu-pro, gaia (validation only), osworld-verified, webarena-verified, agentbench, tau-bench v1, mcpmark, mcp-atlas (public 500), astabench, agencybench, odysseys (live), judge-reliability-harness。其余 contamination 新方法 (CCV / JECS / Watermark / Soft Contamination) 值得跟踪，但目前只能引用 paper 结论。</p>
 <h3>引用条目</h3>
 <ul>
-<li>[^frontier-scan]: Stage 0.5 frontier scan, 2026-02-01 → 2026-05-25, 73 new works. (内部 doc: shared/frontier-scan-stage-0_5.md)</li>
-<li>[^ccv-2026]: Song, T.-E. (2026). Cross-Context Verification. https://arxiv.org/abs/2603.21454</li>
-<li>[^closed-watermark-2026]: Huang, P., Chaudhuri, K., Wang, Y.-X. (2026). Dataset Watermarking for Closed LLMs. https://arxiv.org/abs/2605.06865</li>
-<li>[^soft-contam-2026]: Spiesberger, A., et al. (2026). Soft Contamination. https://arxiv.org/abs/2602.12413</li>
-<li>[^odysseys-2026]: Jang, L. K., et al. (2026). Odysseys. https://arxiv.org/abs/2604.24964</li>
-<li>[^astabench-2026]: Bragg, J., et al. (2026). AstaBench. ICLR 2026 Oral. https://arxiv.org/abs/2510.21652</li>
-<li>[^osworld-verified-2025]: XLANG Lab (2025). OSWorld-Verified. https://xlang.ai/blog/osworld-verified</li>
-<li>[^mcp-atlas-2026]: Bandi, C. et al. (2026). MCP-Atlas. https://arxiv.org/abs/2602.00933</li>
-<li>[^berkeley-exploit-2026]: Wang, H., et al. (2026). How We Broke Top AI Agent Benchmarks. Berkeley RDI.</li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
+<li></li>
 </ul>
 
 </section>
