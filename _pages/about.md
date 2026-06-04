@@ -13,8 +13,9 @@ Research Interests
 ======
 My research interests include but are not limited to:
 *   **Data Efficiency**: Data selection, core-set construction, and optimizing the data foundation for model training.
-*   **Model Efficiency**: Model compression, efficient training and inference strategies, and acceleration algorithms for diffusion models.
+*   **Model Efficiency**: Model compression, efficient training and inference strategies, and Scaling Laws and architecture optimization for large-scale models.
 *   **Model Robustness**: Anomaly detection and Out-of-Distribution (OOD) detection to enhance model reliability.
+*   **Multi-Agent LLMs & AI for Science**: Multi-agent LLM systems for scientific computing (e.g., DFT), including their automation and evaluation methodologies.
 
 Recent Publications
 ======
@@ -34,7 +35,7 @@ Published in *AAAI Conference on Artificial Intelligence (AAAI)*, 2026
 **Weilin Wan**, Weizhong Zhang, Cheng Jin  
 Published in *Neural Information Processing Systems (NeurIPS)*, 2025  
 
-<!-- Academic Service
+Academic Service
 ======
 I actively participate in the peer review process for top-tier computer vision and machine learning conferences and journals.
 
@@ -42,6 +43,7 @@ I actively participate in the peer review process for top-tier computer vision a
     *   Neural Information Processing Systems (**NeurIPS**): 2024, 2025
         *   🏆 **Selected as Top Reviewer** (NeurIPS 2024, 2025)
     *   International Conference on Learning Representations (**ICLR**): 2025, 2026
+    *   IEEE/CVF Conference on Computer Vision and Pattern Recognition (**CVPR**): 2026
     *   AAAI Conference on Artificial Intelligence (**AAAI**): 2026
 *   **Journal Reviewer**:
-    *   Transactions on Machine Learning Research (**TMLR**) -->
+    *   Transactions on Machine Learning Research (**TMLR**)
